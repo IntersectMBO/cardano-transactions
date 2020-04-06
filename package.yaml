@@ -1,0 +1,44 @@
+name:                cardano-transactions
+version:             1.0.0
+github:              "input-output-hk/cardano-transactions"
+license:             Apache-2.0
+author:              "KtorZ <matthias.benkort@iohk.io>"
+maintainer:          "operations@iohk.io, matthias.benkort@iohk.io"
+copyright:           "2020 IOHK"
+synopsis:            Library utilities for constructing and signing Cardano transactions.
+category:            Cardano
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+description: |
+  Please see the README on GitHub at <https://github.com/input-output-hk/cardano-transactions>
+
+dependencies:
+- base >= 4.7 && < 5
+
+library:
+  source-dirs: src
+
+# executables:
+#   cardano-transactions-exe:
+#     main:                Main.hs
+#     source-dirs:         app
+#     ghc-options:
+#     - -threaded
+#     - -rtsopts
+#     - -with-rtsopts=-N
+#     dependencies:
+#     - cardano-transactions
+#
+# tests:
+#   cardano-transactions-test:
+#     main:                Spec.hs
+#     source-dirs:         test
+#     ghc-options:
+#     - -threaded
+#     - -rtsopts
+#     - -with-rtsopts=-N
+#     dependencies:
+#     - cardano-transactions
