@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 
-module Data.UTxO.Transaction.Generic
+module Data.UTxO.Transaction
     ( UTxOTransaction (..)
     , N(..)
     ) where

@@ -18,6 +18,12 @@ description: |
 dependencies:
 - base >= 4.7 && < 5
 - bytestring
+- cborg
+- cardano-binary
+- cardano-crypto
+- cardano-ledger
+- cardano-crypto-wrapper
+- text
 
 library:
   source-dirs: src

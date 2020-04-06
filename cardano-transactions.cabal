@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 56ba374737c7700b5f889d708cd6cbee83ad8d2ff70b1ba42e71a17dad07f727
+-- hash: 2c3955279d566ef54b9650dca0187f3139a988fb6190eb7b4a549b6845088069
 
 name:           cardano-transactions
 version:        1.0.0
@@ -29,7 +29,8 @@ source-repository head
 
 library
   exposed-modules:
-      Data.UTxO.Transaction.Generic
+      Data.UTxO.Transaction
+      Data.UTxO.Transaction.Cardano.Byron
   other-modules:
       Paths_cardano_transactions
   hs-source-dirs:
@@ -37,4 +38,10 @@ library
   build-depends:
       base >=4.7 && <5
     , bytestring
+    , cardano-binary
+    , cardano-crypto
+    , cardano-crypto-wrapper
+    , cardano-ledger
+    , cborg
+    , text
   default-language: Haskell2010
