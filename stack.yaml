@@ -1,3 +1,33 @@
 resolver: lts-14.25
+
 packages:
 - .
+
+extra-deps:
+  - git: https://github.com/input-output-hk/cardano-ledger #
+    commit: 512c26a66a6a63278846646b81bf8eadcd4ae99c       #
+    subdirs:                                               #
+      - cardano-ledger                                     #
+      - crypto                                             #
+                                                           #
+  # required by cardano-ledger --------------------------- #
+  - canonical-json-0.6.0.0
+  - base58-bytestring-0.1.0
+  - streaming-binary-0.3.0.1
+
+  - git: https://github.com/input-output-hk/cardano-crypto
+    commit: 05aa1bc640c42bfca787531d12595489c1fa3b82
+
+  - git: https://github.com/input-output-hk/cardano-prelude
+    commit: 3ac22a2fda11ca7131a011a9ea48fcbfdc26d6b3
+
+  - git: https://github.com/input-output-hk/cardano-base
+    commit: 1222078176fe74d5ce17f2a8343c6588233a49a3
+    subdirs:
+      - binary
+
+  - git: https://github.com/input-output-hk/iohk-monitoring-framework
+    commit: 10877fbae54aa7a4c04ae3b5d87c825a4019e9e9
+    subdirs:
+      - contra-tracer
+  # --------------------------------------- cardano-ledger #
