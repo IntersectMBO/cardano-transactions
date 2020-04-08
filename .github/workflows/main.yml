@@ -40,6 +40,10 @@ jobs:
     - name: Build & Test
       run: |
         stack --no-terminal test --bench --no-run-benchmarks
+
+    - name: Documentation
+      run: |
+        stack --no-terminal build --no-haddock-deps --haddock
         mkdir haddock && mv $(stack path --local-doc-root)/* haddock/
 
     - name: Deploy Documentation
