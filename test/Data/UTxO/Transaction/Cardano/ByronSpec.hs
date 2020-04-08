@@ -6,10 +6,6 @@ module Data.UTxO.Transaction.Cardano.ByronSpec
 
 import Prelude
 
-import Cardano.Chain.Genesis
-    ( mainnetProtocolMagicId )
-import Cardano.Crypto.ProtocolMagic
-    ( ProtocolMagicId (..) )
 import Data.ByteString
     ( ByteString )
 import Data.Function
@@ -19,7 +15,14 @@ import Data.Maybe
 import Data.Text
     ( Text )
 import Data.UTxO.Transaction.Cardano.Byron
-    ( fromBase16, fromBase58, mkInput, mkOutput, mkSignKey )
+    ( fromBase16
+    , fromBase58
+    , mainnetMagic
+    , mkInput
+    , mkOutput
+    , mkSignKey
+    , testnetMagic
+    )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
@@ -43,7 +46,7 @@ spec = do
                 "Ae2tdPwUPEZETXfbQxKMkMJQY1MoHCBS7bkw6TmhLjRvi9LZh1uDnXy319f"
 
         it "1 input, 1 output" $ do
-            compareGolden goldenMainnet__1_1 $ Tx.empty mainnetProtocolMagicId
+            compareGolden goldenMainnet__1_1 $ Tx.empty mainnetMagic
                 & Tx.addInput inp0
                 & Tx.addOutput out0
                 & Tx.lock
@@ -51,7 +54,7 @@ spec = do
                 & Tx.serialize
 
         it "2 inputs, 2 outputs" $ do
-            compareGolden goldenMainnet__2_2 $ Tx.empty mainnetProtocolMagicId
+            compareGolden goldenMainnet__2_2 $ Tx.empty mainnetMagic
                 & Tx.addInput inp0
                 & Tx.addInput inp1
                 & Tx.addOutput out0
@@ -62,7 +65,7 @@ spec = do
                 & Tx.serialize
 
         it "1 input, 25 outputs" $ do
-            compareGolden goldenMainnet__25_1 $ Tx.empty mainnetProtocolMagicId
+            compareGolden goldenMainnet__25_1 $ Tx.empty mainnetMagic
                 & Tx.addInput inp0
                 & flip (foldr Tx.addOutput) (replicate 25 out2)
                 & Tx.lock
@@ -80,7 +83,7 @@ spec = do
                 "2cWKMJemoBajc46Wu4Z7e6bG48myZWfB7Z6pD77L6PrJQWt9HZ3Yv7o8CYZTBMqHTPTkv"
 
         it "1 input, 1 output" $ do
-            compareGolden goldenTestnet__1_1 $ Tx.empty testnetProtocolMagicId
+            compareGolden goldenTestnet__1_1 $ Tx.empty testnetMagic
                 & Tx.addInput inp0
                 & Tx.addOutput out0
                 & Tx.lock
@@ -88,7 +91,7 @@ spec = do
                 & Tx.serialize
 
         it "2 inputs, 2 outputs" $ do
-            compareGolden goldenTestnet__2_2 $ Tx.empty testnetProtocolMagicId
+            compareGolden goldenTestnet__2_2 $ Tx.empty testnetMagic
                 & Tx.addInput inp0
                 & Tx.addInput inp1
                 & Tx.addOutput out0
@@ -99,7 +102,7 @@ spec = do
                 & Tx.serialize
 
         it "1 input, 25 outputs" $ do
-            compareGolden goldenTestnet__25_1 $ Tx.empty testnetProtocolMagicId
+            compareGolden goldenTestnet__25_1 $ Tx.empty testnetMagic
                 & Tx.addInput inp0
                 & flip (foldr Tx.addOutput) (replicate 25 out2)
                 & Tx.lock
@@ -151,9 +154,6 @@ unsafeB16 = fromMaybe (error msg) . fromBase16
 unsafeB58 :: Text -> ByteString
 unsafeB58 = fromMaybe (error msg) . fromBase58
   where msg = "unable to decode base58 string."
-
-testnetProtocolMagicId :: ProtocolMagicId
-testnetProtocolMagicId = ProtocolMagicId 1097911063
 
 --
 -- Test Vectors

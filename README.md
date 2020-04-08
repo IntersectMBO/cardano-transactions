@@ -35,12 +35,12 @@ import Data.Function
 import Data.Maybe
     ( fromMaybe )
 import Data.UTxO.Transaction.Cardano.Byron
-    ( ProtocolMagicId (..)
-    , fromBase16
+    ( fromBase16
     , fromBase58
     , mkInput
     , mkOutput
     , mkSignKey
+    , testnetMagic
     )
 
 import qualified Data.ByteString as BS
@@ -84,9 +84,7 @@ let (Just output1) = mkOutput oneAda =<< fromBase58
 --
 --   'Data.UTxO.Transaction#MkPayment'
 
-let magic = ProtocolMagicId 1097911063 -- Testnet
-
-let eitherTx = Tx.empty magic
+let eitherTx = Tx.empty testnetMagic
       & Tx.addInput input0
       & Tx.addOutput output0
       & Tx.addOutput output1

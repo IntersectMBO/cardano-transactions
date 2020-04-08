@@ -5,11 +5,15 @@
 
 module Data.UTxO.Transaction.Cardano.Byron
     (
+    -- * Initialization
+      mkInit
+    , mainnetMagic
+    , testnetMagic
+
     -- * Constructing Primitives
-      mkInput
+    , mkInput
     , mkOutput
     , mkSignKey
-    , ProtocolMagicId (..)
 
     -- * Converting From Bases
     , fromBase16
@@ -76,6 +80,30 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Encoding as T
 
+-- | Construct a payment 'Init' for /Byron/ from primitive types.
+--
+-- __examples__:
+--
+-- >>> mkInit 764824073 == mainnetMagic
+-- True
+--
+-- >>> mkInit 1097911063 == testnetMagic
+-- True
+mkInit
+    :: Word32
+        -- ^ A protocol magic id
+    -> Init Byron
+mkInit =
+    ProtocolMagicId
+
+-- | Pre-defined 'Init' magic for /Byron/ MainNet.
+mainnetMagic :: Init Byron
+mainnetMagic = mkInit 764824073
+
+-- | Pre-defined 'Init' magic for /Byron/ TestNet.
+testnetMagic :: Init Byron
+testnetMagic = mkInit 1097911063
+
 -- | Construct a payment 'Input' for /Byron/ from primitive types.
 --
 -- __example__:
@@ -86,7 +114,7 @@ mkInput
     :: Word32
         -- ^ Input index.
     -> ByteString
-        -- ^ Input transaction id.
+        -- ^ Input transaction id. See also: 'fromBase16'.
     -> Maybe (Input Byron)
 mkInput ix bytes =
     case digestFromByteString @Blake2b_256 bytes of
@@ -103,7 +131,7 @@ mkOutput
     :: Natural
         -- ^ Output value, in Lovelace (1 Ada = 1e6 Lovelace).
     -> ByteString
-        -- ^ Output Address
+        -- ^ Output Address. See also: 'fromBase58'.
     -> Maybe (Output Byron)
 mkOutput n bytes =
     case (fromCBOR' bytes, mkLovelace (fromIntegral n)) of
@@ -128,6 +156,8 @@ mkSignKey
         -- PRV   = 64OCTET  # a 64 bytes Ed25519 extended private key
         -- CC    = 32OCTET  # a 32 bytes chain code
         -- @
+        --
+        -- See also: 'fromBase16'.
     -> Maybe (SignKey Byron)
 mkSignKey bytes
     | BS.length bytes /= 96 = Nothing
