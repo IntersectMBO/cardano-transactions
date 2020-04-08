@@ -20,6 +20,11 @@ dependencies:
 
 library:
   source-dirs: src
+  ghc-options:
+  - -Werror
+  - -Wall
+  - -Wcompat
+  - -fwarn-redundant-constraints
   dependencies:
   - base58-bytestring
   - bytestring
@@ -48,6 +53,10 @@ tests:
     source-dirs: test
     main: Main.hs
     ghc-options:
+    - -Werror
+    - -Wall
+    - -Wcompat
+    - -fwarn-redundant-constraints
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N

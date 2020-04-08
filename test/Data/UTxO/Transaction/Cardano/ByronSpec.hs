@@ -24,13 +24,14 @@ import Data.UTxO.Transaction.Cardano.Byron
     , testnetMagic
     )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, expectationFailure, it )
 import Test.QuickCheck
-    ( Property, conjoin, counterexample, property, (===) )
+    ( Property, conjoin, counterexample, (===) )
+import Test.QuickCheck.Monadic
+    ( monadicIO, run )
 
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Pretty as CBOR
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.UTxO.Transaction as Tx
 
 spec :: Spec
@@ -126,11 +127,13 @@ spec = do
         \1bbf1c6081545b1ab140578d7b5c035bf904d05dd8e9b79b34d3160f86206bfc"
 
 compareGolden
-    :: ByteString
+    :: Show e
+    => ByteString
         -- ^ An expected encoded result
     -> Either e ByteString
         -- ^ The actual string received
     -> Property
+compareGolden _want (Left e)   = monadicIO $ run $ expectationFailure (show e)
 compareGolden want (Right got) =
     -- NOTE Using QuickCheck here simply for getting better counter examples
     -- than HSpec in case of failure...

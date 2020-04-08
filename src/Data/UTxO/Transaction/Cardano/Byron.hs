@@ -23,20 +23,9 @@ module Data.UTxO.Transaction.Cardano.Byron
 import Cardano.Binary
     ( FromCBOR (..), ToCBOR (..) )
 import Cardano.Chain.Common
-    ( Address
-    , decodeAddressBase58
-    , encodeAddressBase58
-    , mkAttributes
-    , mkLovelace
-    )
+    ( mkAttributes, mkLovelace )
 import Cardano.Chain.UTxO
-    ( TxAux (..)
-    , TxIn (..)
-    , TxInWitness (..)
-    , TxOut (..)
-    , TxSigData (..)
-    , mkTxAux
-    )
+    ( TxIn (..), TxInWitness (..), TxOut (..), TxSigData (..), mkTxAux )
 import Cardano.Crypto.Hashing
     ( AbstractHash (..), hash )
 import Cardano.Crypto.ProtocolMagic
@@ -46,15 +35,13 @@ import Cardano.Crypto.Signing
 import Cardano.Crypto.Wallet
     ( toXPub, xprv )
 import Cardano.Crypto.Wallet.Encrypted
-    ( EncryptedKey, encryptedCreateDirectWithTweak, unEncryptedKey )
+    ( encryptedCreateDirectWithTweak, unEncryptedKey )
 import Codec.CBOR.Read
     ( deserialiseFromBytes )
-import Crypto.Error
-    ( CryptoFailable (..) )
 import Crypto.Hash
     ( Blake2b_256, digestFromByteString )
 import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase, convertToBase )
+    ( Base (..), convertFromBase )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
@@ -231,7 +218,7 @@ instance MkPayment Byron where
 
     serialize :: Tx Byron -> Either ErrMkPayment ByteString
     serialize (Left e) = Left e
-    serialize (Right (pm, inps, outs, sigData, wits))
+    serialize (Right (_pm, inps, outs, _sigData, wits))
         | NE.length inps /= length wits = Left MissingSignature
         | otherwise = Right $ CBOR.toStrictByteString $ toCBOR $ mkTxAux
             (CC.UnsafeTx inps outs (mkAttributes ()))
