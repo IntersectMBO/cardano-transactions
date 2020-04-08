@@ -9,6 +9,7 @@ module Data.UTxO.Transaction.Cardano.Byron
       mkInput
     , mkOutput
     , mkSignKey
+    , ProtocolMagicId (..)
 
     -- * Converting From Bases
     , fromBase16
