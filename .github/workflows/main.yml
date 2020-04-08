@@ -8,7 +8,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest]
+        os: [ubuntu-latest]
         plan:
         - { build: stack, resolver: "--resolver lts-14.25"  }
         include: []
@@ -42,12 +42,14 @@ jobs:
         stack --no-terminal test --bench --no-run-benchmarks
 
     - name: Documentation
+      if: matrix.os == 'ubuntu-latest'
       run: |
         stack --no-terminal build --no-haddock-deps --haddock
-        mkdir -p haddock && mv $(stack path --local-pkg-db)/../doc/cardano-transactions-*/* haddock
+        mkdir -p dist/haddock && mv $(stack path --local-pkg-db)/../doc/cardano-transactions-*/* dist/haddock
 
     - name: Deploy Documentation
+      if: matrix.os == 'ubuntu-latest'
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: haddock
+        publish_dir: dist
