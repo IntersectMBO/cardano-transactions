@@ -44,7 +44,7 @@ jobs:
     - name: Documentation
       run: |
         stack --no-terminal build --no-haddock-deps --haddock
-        mkdir haddock && mv $(stack path --local-doc-root)/* haddock/
+        mkdir -p haddock && mv $(stack path --local-pkg-db)/../doc/cardano-transactions-*/* haddock
 
     - name: Deploy Documentation
       uses: peaceiris/actions-gh-pages@v3
