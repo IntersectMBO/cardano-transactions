@@ -40,11 +40,10 @@ jobs:
     - name: Build & Test
       run: |
         stack --no-terminal test --bench --no-run-benchmarks
-
-    - name: Build & Test
+        mkdir haddock && mv $(stack path --local-doc-root)/* haddock/
 
     - name: Deploy Documentation
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir:
+        publish_dir: haddock
