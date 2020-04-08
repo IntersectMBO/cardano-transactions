@@ -1,5 +1,9 @@
 resolver: lts-14.25
 
+# Generate files required by Weeder.
+# See https://github.com/ndmitchell/weeder/issues/53
+ghc-options: {"$locals": -ddump-to-file -ddump-hi}
+
 packages:
 - .
 
