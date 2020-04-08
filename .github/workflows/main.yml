@@ -42,14 +42,15 @@ jobs:
         stack --no-terminal test --bench --no-run-benchmarks
 
     - name: Documentation
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-latest' && github.event_name == 'push'
       run: |
         stack --no-terminal build --no-haddock-deps --haddock
         mkdir -p dist/haddock && mv $(stack path --local-pkg-db)/../doc/cardano-transactions-*/* dist/haddock
 
     - name: Deploy Documentation
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-latest' && github.event_name == 'push'
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: dist
+        enable_jekyll: true
