@@ -65,8 +65,10 @@ tests:
     - cardano-crypto
     - cardano-crypto-wrapper
     - cardano-ledger
+    - cardano-ledger-test
     - cardano-transactions
     - cborg
+    - hedgehog-quickcheck
     - hspec
     - QuickCheck
     - text

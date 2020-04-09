@@ -1,4 +1,8 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Data.UTxO.Transaction.Cardano.ByronSpec
     ( spec
@@ -6,36 +10,75 @@ module Data.UTxO.Transaction.Cardano.ByronSpec
 
 import Prelude
 
+import Cardano.Chain.UTxO
+    ( TxIn (..), TxInWitness (..), TxOut (..), TxSigData (..) )
+import Cardano.Crypto.ProtocolMagic
+    ( ProtocolMagicId (..) )
 import Data.ByteString
     ( ByteString )
 import Data.Function
     ( (&) )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Maybe
     ( fromMaybe )
 import Data.Text
     ( Text )
+import Data.UTxO.Transaction
+    ( ErrMkPayment (..) )
 import Data.UTxO.Transaction.Cardano.Byron
-    ( fromBase16
+    ( decodeCoinSel
+    , decodeTx
+    , encodeCoinSel
+    , encodeTx
+    , fromBase16
     , fromBase58
     , mainnetMagic
+    , mkInit
     , mkInput
     , mkOutput
     , mkSignKey
     , testnetMagic
     )
+import Test.Cardano.Chain.UTxO.Gen
+    ( genTxIn, genTxInWitness, genTxOut, genTxSigData )
 import Test.Hspec
     ( Spec, describe, expectationFailure, it )
 import Test.QuickCheck
-    ( Property, conjoin, counterexample, (===) )
+    ( Arbitrary (..)
+    , NonEmptyList (..)
+    , Property
+    , conjoin
+    , counterexample
+    , elements
+    , listOf
+    , property
+    , withMaxSuccess
+    , (===)
+    )
+import Test.QuickCheck.Hedgehog
+    ( hedgehog )
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
 
+import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Pretty as CBOR
+import qualified Codec.CBOR.Read as CBOR
+import qualified Codec.CBOR.Write as CBOR
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.List.NonEmpty as NE
 import qualified Data.UTxO.Transaction as Tx
 
 spec :: Spec
 spec = do
+    describe "CBOR roundtrips" $ do
+        it "CoinSel Byron" $ withMaxSuccess 500 $ property $
+            prop_RoundTripCBOR encodeCoinSel decodeCoinSel
+
+        it "Tx Byron" $ withMaxSuccess 500 $ property $
+            prop_RoundTripCBOR encodeTx decodeTx
+
     describe "(Mainnet) Golden Tests Transaction Construction" $ do
         let Just out0 = mkOutput 42 $ unsafeB58
                 "Ae2tdPwUPEZETXfbQxKMkMJQY1MoHCBS7bkw6TmhLjRvi9LZh1uDnXy319f"
@@ -125,6 +168,55 @@ spec = do
         "00bc08703e4bb4d9fe6edf4ad2ccb1ffc6fb8d555d96805d643e5d06afde605c\
         \e7d41d056def11417b17d3fb7415392b5f329877f372e55b0959c71b2bd2b447\
         \1bbf1c6081545b1ab140578d7b5c035bf904d05dd8e9b79b34d3160f86206bfc"
+
+--
+-- Property: Roundtrip CBOR
+--
+
+prop_RoundTripCBOR
+    :: (Show a, Eq a)
+    => (a -> CBOR.Encoding)
+    -> (forall s. CBOR.Decoder s a)
+    -> a
+    -> Property
+prop_RoundTripCBOR encode decode a =
+    result === Right (mempty, a)
+  where
+    bytes  = CBOR.toStrictByteString (encode a)
+    result = CBOR.deserialiseFromBytes decode (BL.fromStrict bytes)
+
+instance Arbitrary ProtocolMagicId where
+    arbitrary = mkInit <$> arbitrary
+
+instance Arbitrary TxIn where
+    arbitrary = hedgehog genTxIn
+
+instance Arbitrary TxOut where
+    arbitrary = hedgehog genTxOut
+
+instance Arbitrary TxSigData where
+    arbitrary = hedgehog genTxSigData
+
+instance Arbitrary ErrMkPayment where
+    arbitrary = elements [ MissingInput, MissingOutput, MissingSignature ]
+
+instance {-# OVERLAPS #-}
+    ( Arbitrary a, Arbitrary b, Arbitrary c)
+    => Arbitrary (ProtocolMagicId, NonEmpty a, NonEmpty b, c, [TxInWitness])
+  where
+    arbitrary = do
+        pm   <- arbitrary
+        wits <- listOf (hedgehog $ genTxInWitness pm)
+        (,,,,)
+            <$> pure pm
+            <*> fmap (NE.fromList . getNonEmpty) arbitrary
+            <*> fmap (NE.fromList . getNonEmpty) arbitrary
+            <*> arbitrary
+            <*> pure wits
+
+--
+-- Golden
+--
 
 compareGolden
     :: Show e

@@ -1,7 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+
+{-# OPTIONS_HADDOCK prune #-}
 
 module Data.UTxO.Transaction.Cardano.Byron
     (
@@ -18,6 +22,13 @@ module Data.UTxO.Transaction.Cardano.Byron
     -- * Converting From Bases
     , fromBase16
     , fromBase58
+
+    -- Internal
+    , Byron
+    , encodeCoinSel
+    , decodeCoinSel
+    , encodeTx
+    , decodeTx
     ) where
 
 import Cardano.Binary
@@ -47,7 +58,7 @@ import Data.ByteString
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58 )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty, nonEmpty )
 import Data.Text
     ( Text )
 import Data.UTxO.Transaction
@@ -61,10 +72,13 @@ import Numeric.Natural
 
 import qualified Cardano.Chain.UTxO as CC
 import qualified Cardano.Crypto.Signing as CC
+import qualified Codec.CBOR.Decoding as CBOR
+import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 -- | Construct a payment 'Init' for /Byron/ from primitive types.
@@ -76,6 +90,8 @@ import qualified Data.Text.Encoding as T
 --
 -- >>> mkInit 1097911063 == testnetMagic
 -- True
+--
+-- @since 1.0.0
 mkInit
     :: Word32
         -- ^ A protocol magic id
@@ -84,10 +100,14 @@ mkInit =
     ProtocolMagicId
 
 -- | Pre-defined 'Init' magic for /Byron/ MainNet.
+--
+-- @since 1.0.0
 mainnetMagic :: Init Byron
 mainnetMagic = mkInit 764824073
 
 -- | Pre-defined 'Init' magic for /Byron/ TestNet.
+--
+-- @since 1.0.0
 testnetMagic :: Init Byron
 testnetMagic = mkInit 1097911063
 
@@ -97,6 +117,8 @@ testnetMagic = mkInit 1097911063
 --
 -- >>> mkInput 14 =<< fromBase16 "3b402651...aad1c0b7"
 -- Just (Input ...)
+--
+-- @since 1.0.0
 mkInput
     :: Word32
         -- ^ Input index.
@@ -114,6 +136,8 @@ mkInput ix bytes =
 --
 -- >>> mkOutput 42 =<< fromBase58 "Ae2tdPwU...DnXy319f"
 -- Just (Output ...)
+--
+-- @since 1.0.0
 mkOutput
     :: Natural
         -- ^ Output value, in Lovelace (1 Ada = 1e6 Lovelace).
@@ -133,6 +157,8 @@ mkOutput n bytes =
 --
 -- >>> mkSignKey =<< fromBase16 "3b402651...aad1c0b7"
 -- Just (SignKey ...)
+--
+-- @since 1.0.0
 mkSignKey
     :: ByteString
         -- ^ A extended address private key and its chain code.
@@ -159,10 +185,14 @@ mkSignKey bytes
 --
 
 -- | Convert a base16 encoded 'Text' into a raw 'ByteString'
+--
+-- @since 1.0.0
 fromBase16 :: Text -> Maybe ByteString
 fromBase16 = either (const Nothing) Just . convertFromBase Base16 . T.encodeUtf8
 
 -- | Convert a base58 encoded 'Text' into a raw 'ByteString'
+--
+-- @since 1.0.0
 fromBase58 :: Text -> Maybe ByteString
 fromBase58 = decodeBase58 bitcoinAlphabet . T.encodeUtf8
 
@@ -170,6 +200,7 @@ fromBase58 = decodeBase58 bitcoinAlphabet . T.encodeUtf8
 -- MkPayment instance
 --
 
+-- Type-level constructor capturing types for 'Byron'.
 data Byron
 
 instance MkPayment Byron where
@@ -223,3 +254,92 @@ instance MkPayment Byron where
         | otherwise = Right $ CBOR.toStrictByteString $ toCBOR $ mkTxAux
             (CC.UnsafeTx inps outs (mkAttributes ()))
             (fromList $ reverse wits)
+
+
+-- Internal
+--
+-- For running the Payment DSL as a command-line, we need to be able to produce
+-- a text output representing the internal state.
+--
+-- There's no point about obfuscating this more than necessary; this should
+-- remain mainly invisible to users if used properly through pipes. Yet, it can
+-- be useful to have a human-friendly representation that is base16 or base64
+-- encoded. Three possible obvious choice:
+--
+-- - CBOR, since most data above can already be serialized to CBOR
+-- - JSON, instances exists on most type and are derived generically from CBOR
+-- - Show, although here most types don't have a corresponding 'Read' instance.
+--
+-- Since we also need to decode an encoded state, CBOR will be path of least
+-- resistance.
+
+-- __Internal__: Encode a 'CoinSel Byron' to CBOR.
+encodeCoinSel :: CoinSel Byron -> CBOR.Encoding
+encodeCoinSel (pm, inps, outs) = mconcat
+    [ toCBOR pm
+    , CBOR.encodeListLenIndef
+    , mconcat (toCBOR <$> inps)
+    , CBOR.encodeBreak
+    , CBOR.encodeListLenIndef
+    , mconcat (toCBOR <$> outs)
+    , CBOR.encodeBreak
+    ]
+
+-- __Internal__: Decode a 'CoinSel Byron' from CBOR.
+decodeCoinSel :: CBOR.Decoder s (CoinSel Byron)
+decodeCoinSel = (,,)
+    <$> fromCBOR
+    <*> decodeListIndef fromCBOR
+    <*> decodeListIndef fromCBOR
+
+-- __Internal__: Encode a 'Tx Byron' to CBOR.
+encodeTx :: Tx Byron -> CBOR.Encoding
+encodeTx (Left e) = mconcat
+    [ CBOR.encodeWord8 0
+    , CBOR.encodeString $ T.pack $ show e
+    ]
+encodeTx (Right (pm, inps, outs, sigData, wits)) = mconcat
+    [ CBOR.encodeWord8 1
+    , encodeCoinSel (pm, NE.toList inps, NE.toList outs)
+    , toCBOR sigData
+    , CBOR.encodeListLenIndef
+    , mconcat (toCBOR <$> wits)
+    , CBOR.encodeBreak
+    ]
+
+-- __Internal__: Decode a 'Tx Byron' from CBOR.
+decodeTx :: CBOR.Decoder s (Tx Byron)
+decodeTx = do
+    CBOR.decodeWord8 >>= \case
+        0 -> fmap T.unpack CBOR.decodeString >>= \case
+            str | str == show MissingInput     -> pure $ Left MissingInput
+            str | str == show MissingOutput    -> pure $ Left MissingOutput
+            str | str == show MissingSignature -> pure $ Left MissingSignature
+            _ -> fail $
+                "Invalid error constructor found in 'Tx Byron'. Constructor must \
+                \be one of: " <> unwords (show <$>
+                    [ MissingInput, MissingOutput, MissingSignature])
+        1 -> do
+            (pm, inps, outs) <- decodeCoinSel
+            sigData <- fromCBOR
+            wits <- decodeListIndef fromCBOR
+            case (nonEmpty inps, nonEmpty outs) of
+                (Nothing, _) -> fail
+                    "Empty list of inputs found in 'Tx Byron'. This is impossible \
+                    \unless the data has been modified by hand."
+                (_, Nothing) -> fail
+                    "Empty list of outputs found in 'Tx Byron'. This is impossible \
+                    \unless the data has been modified by hand."
+                (Just neInps, Just neOuts) ->
+                    pure $ Right (pm, neInps, neOuts, sigData, wits)
+
+        _ -> fail
+            "'Tx Byron' has been modified  with and is now invalid. The first \
+            \byte must be either 0 or 1, followed by respectively an error \
+            \constructor or constituants of the intermediate transaction."
+
+-- __Internal__ Decode an arbitrary long list 'sandwiched' by markers.
+decodeListIndef :: forall s a. CBOR.Decoder s a -> CBOR.Decoder s [a]
+decodeListIndef decodeOne = do
+    _ <- CBOR.decodeListLenIndef
+    CBOR.decodeSequenceLenIndef (flip (:)) [] reverse decodeOne
