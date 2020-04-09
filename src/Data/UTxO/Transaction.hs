@@ -125,7 +125,7 @@ data ErrMkPayment
         -- ^ Payments must have at least one output
     | MissingSignature
         -- ^ Payments must have a signature for each input.
-    deriving (Show, Eq)
+    deriving (Show, Read, Eq)
 
 -- $note
 --
