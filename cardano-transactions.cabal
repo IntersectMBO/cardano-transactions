@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 22964f0c7629eae3f0be0146535605a2db4e3340b9039e907470f34d5c5eb8c4
+-- hash: 4e1c168cdcb3ea0d1727505befb4fcdd66dc7a74a244e5950fa98173ff30cef9
 
 name:           cardano-transactions
 version:        1.0.0
@@ -47,6 +47,27 @@ library
     , cborg
     , cryptonite
     , memory
+    , text
+  default-language: Haskell2010
+
+executable cardano-tx
+  main-is: Main.hs
+  other-modules:
+      Paths_cardano_transactions
+  hs-source-dirs:
+      app
+  ghc-options: -Werror -Wall -Wcompat -fwarn-redundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      ansi-terminal
+    , base >=4.7 && <5
+    , base58-bytestring
+    , bytestring
+    , cardano-binary
+    , cardano-crypto-wrapper
+    , cardano-transactions
+    , cborg
+    , memory
+    , optparse-applicative
     , text
   default-language: Haskell2010
 
