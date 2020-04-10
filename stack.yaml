@@ -1,4 +1,4 @@
-resolver: lts-14.25
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/master/snapshots/cardano-1.9.3.yaml
 
 # Generate files required by Weeder.
 # See https://github.com/ndmitchell/weeder/issues/53
@@ -9,52 +9,3 @@ packages:
 
 extra-deps:
   - hedgehog-quickcheck-0.1.1
-
-  - git: https://github.com/input-output-hk/cardano-ledger #
-    commit: 512c26a66a6a63278846646b81bf8eadcd4ae99c       #
-    subdirs:                                               #
-      - cardano-ledger                                     #
-      - cardano-ledger/test                                #
-      - crypto                                             #
-      - crypto/test                                        #
-                                                           #
-  # required by cardano-ledger --------------------------- #
-  - canonical-json-0.6.0.0
-  - base58-bytestring-0.1.0
-  - generic-monoid-0.1.0.0
-  - gray-code-0.3.1
-  - moo-1.2
-  - streaming-binary-0.3.0.1
-  - Unique-0.4.7.6
-
-  - git: https://github.com/input-output-hk/cardano-base
-    commit: 1222078176fe74d5ce17f2a8343c6588233a49a3
-    subdirs:
-      - binary
-      - binary/test
-      - cardano-crypto-class
-
-  - git: https://github.com/input-output-hk/cardano-crypto
-    commit: 05aa1bc640c42bfca787531d12595489c1fa3b82
-
-  - git: https://github.com/input-output-hk/cardano-ledger-specs
-    commit: 647cd71e3c4630488e71596f5e9c26fee598b541
-    subdirs:
-      - byron/semantics/executable-spec # small-steps
-      - byron/ledger/executable-spec    # cs-ledger
-      - byron/chain/executable-spec     # cs-blockchain
-
-  - git: https://github.com/input-output-hk/cardano-prelude
-    commit: 3ac22a2fda11ca7131a011a9ea48fcbfdc26d6b3
-    subdirs:
-      - .
-      - test
-
-  - git: https://github.com/input-output-hk/goblins
-    commit: 26d35ad52fe9ade3391532dbfeb2f416f07650bc
-
-  - git: https://github.com/input-output-hk/iohk-monitoring-framework
-    commit: 10877fbae54aa7a4c04ae3b5d87c825a4019e9e9
-    subdirs:
-      - contra-tracer
-  # --------------------------------------- cardano-ledger #

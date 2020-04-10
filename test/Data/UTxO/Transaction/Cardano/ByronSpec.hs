@@ -14,6 +14,8 @@ import Cardano.Chain.UTxO
     ( TxIn (..), TxInWitness (..), TxOut (..), TxSigData (..) )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId (..) )
+import Control.Monad
+    ( foldM )
 import Data.ByteString
     ( ByteString )
 import Data.Function
@@ -21,18 +23,20 @@ import Data.Function
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromJust, fromMaybe )
 import Data.Text
     ( Text )
 import Data.UTxO.Transaction
-    ( ErrMkPayment (..) )
+    ( ErrMkPayment (..), MkPayment (..) )
 import Data.UTxO.Transaction.Cardano.Byron
-    ( decodeCoinSel
+    ( Byron
+    , decodeCoinSel
     , decodeTx
     , encodeCoinSel
     , encodeTx
     , fromBase16
     , fromBase58
+    , fromBase64
     , mainnetMagic
     , mkInit
     , mkInput
@@ -40,10 +44,16 @@ import Data.UTxO.Transaction.Cardano.Byron
     , mkSignKey
     , testnetMagic
     )
+import Data.Word
+    ( Word32 )
+import Numeric.Natural
+    ( Natural )
+import System.Process
+    ( readProcess )
 import Test.Cardano.Chain.UTxO.Gen
     ( genTxIn, genTxInWitness, genTxOut, genTxSigData )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it )
+    ( Spec, describe, expectationFailure, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonEmptyList (..)
@@ -53,13 +63,12 @@ import Test.QuickCheck
     , elements
     , listOf
     , property
+    , quickCheck
     , withMaxSuccess
     , (===)
     )
 import Test.QuickCheck.Hedgehog
     ( hedgehog )
-import Test.QuickCheck.Monadic
-    ( monadicIO, run )
 
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
@@ -68,7 +77,10 @@ import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Text as T
 import qualified Data.UTxO.Transaction as Tx
+
+{-# ANN spec ("HLint: ignore Use head" :: String) #-}
 
 spec :: Spec
 spec = do
@@ -80,94 +92,144 @@ spec = do
             prop_RoundTripCBOR encodeTx decodeTx
 
     describe "(Mainnet) Golden Tests Transaction Construction" $ do
-        let Just out0 = mkOutput 42 $ unsafeB58
-                "Ae2tdPwUPEZETXfbQxKMkMJQY1MoHCBS7bkw6TmhLjRvi9LZh1uDnXy319f"
-
-        let Just out1 = mkOutput 14 $ unsafeB58
-                "Ae2tdPwUPEZ69HTPqLpnFFw2MAfwdEoV5cpVQP5Uy1bPijSEHQmMXUfT3q5"
-
-        let Just out2 = mkOutput 14 $ unsafeB58
-                "Ae2tdPwUPEZETXfbQxKMkMJQY1MoHCBS7bkw6TmhLjRvi9LZh1uDnXy319f"
-
-        it "1 input, 1 output" $ do
+        it "1 input, 1 output (DSL)" $ do
             compareGolden goldenMainnet__1_1 $ Tx.empty mainnetMagic
-                & Tx.addInput inp0
-                & Tx.addOutput out0
+                & Tx.addInput (unsafeMkInput 0 (txids !! 0))
+                & Tx.addOutput (unsafeMkOutput 42 (addrs !! 0))
                 & Tx.lock
-                & Tx.signWith key0
+                & Tx.signWith (unsafeMkSignKey (keys !! 0))
                 & Tx.serialize
 
-        it "2 inputs, 2 outputs" $ do
+        it "1 input, 1 output (CLI)" $ do
+            compareGolden goldenMainnet__1_1 . fromBase64E =<< (
+                  cardanoTx [ "empty", mainnetMagicT ] ""
+              >>= cardanoTx [ "add-input", "0", txids !! 0 ]
+              >>= cardanoTx [ "add-output", "42", addrs !! 0 ]
+              >>= cardanoTx [ "lock" ]
+              >>= cardanoTx [ "sign-with", keys !! 0 ]
+              >>= cardanoTx [ "serialize" ])
+
+        it "2 inputs, 2 outputs (DSL)" $ do
             compareGolden goldenMainnet__2_2 $ Tx.empty mainnetMagic
-                & Tx.addInput inp0
-                & Tx.addInput inp1
-                & Tx.addOutput out0
-                & Tx.addOutput out1
+                & Tx.addInput (unsafeMkInput 0 (txids !! 0))
+                & Tx.addInput (unsafeMkInput 1 (txids !! 0))
+                & Tx.addOutput (unsafeMkOutput 42 (addrs !! 0))
+                & Tx.addOutput (unsafeMkOutput 14 (addrs !! 1))
                 & Tx.lock
-                & Tx.signWith key0
-                & Tx.signWith key1
+                & Tx.signWith (unsafeMkSignKey (keys !! 0))
+                & Tx.signWith (unsafeMkSignKey (keys !! 1))
                 & Tx.serialize
 
-        it "1 input, 25 outputs" $ do
+        it "2 inputs, 2 outputs (CLI)" $ do
+            compareGolden goldenMainnet__2_2 . fromBase64E =<< (
+                  cardanoTx [ "empty", mainnetMagicT ] ""
+              >>= cardanoTx [ "add-input", "0", txids !! 0 ]
+              >>= cardanoTx [ "add-input", "1", txids !! 0 ]
+              >>= cardanoTx [ "add-output", "42", addrs !! 0 ]
+              >>= cardanoTx [ "add-output", "14", addrs !! 1 ]
+              >>= cardanoTx [ "lock" ]
+              >>= cardanoTx [ "sign-with", keys !! 0 ]
+              >>= cardanoTx [ "sign-with", keys !! 1 ]
+              >>= cardanoTx [ "serialize" ])
+
+        it "1 input, 25 outputs (DSL)" $ do
             compareGolden goldenMainnet__25_1 $ Tx.empty mainnetMagic
-                & Tx.addInput inp0
-                & flip (foldr Tx.addOutput) (replicate 25 out2)
+                & Tx.addInput (unsafeMkInput 0 (txids !! 0))
+                & flip (foldr Tx.addOutput) (replicate 25 $ unsafeMkOutput 14 (addrs !! 0))
                 & Tx.lock
-                & Tx.signWith key0
+                & Tx.signWith (unsafeMkSignKey (keys !! 0))
                 & Tx.serialize
+
+        it "1 input, 25 outputs (CLI)" $ do
+            compareGolden goldenMainnet__25_1 . fromBase64E =<< (
+                  cardanoTx [ "empty", mainnetMagicT ] ""
+              >>= cardanoTx [ "add-input", "0", txids !! 0 ]
+              >>= flip (foldM (&)) (replicate 25 $ cardanoTx [ "add-output", "14", addrs !! 0])
+              >>= cardanoTx [ "lock" ]
+              >>= cardanoTx [ "sign-with", keys !! 0 ]
+              >>= cardanoTx [ "serialize" ])
 
     describe "(Testnet) Golden Tests Transaction Construction" $ do
-        let Just out0 = mkOutput 42 $ unsafeB58
-                "2cWKMJemoBajc46Wu4Z7e6bG48myZWfB7Z6pD77L6PrJQWt9HZ3Yv7o8CYZTBMqHTPTkv"
-
-        let Just out1 = mkOutput 14 $ unsafeB58
-                "2cWKMJemoBaiLiNB8QpHKjkQhnPdQSyxaLb8JJFUQYpiVzgEJE59fN7V7StqnyDuDjHYJ"
-
-        let Just out2 = mkOutput 14 $ unsafeB58
-                "2cWKMJemoBajc46Wu4Z7e6bG48myZWfB7Z6pD77L6PrJQWt9HZ3Yv7o8CYZTBMqHTPTkv"
-
-        it "1 input, 1 output" $ do
+        it "1 input, 1 output (DSL)" $ do
             compareGolden goldenTestnet__1_1 $ Tx.empty testnetMagic
-                & Tx.addInput inp0
-                & Tx.addOutput out0
+                & Tx.addInput (unsafeMkInput 0 (txids !! 0))
+                & Tx.addOutput (unsafeMkOutput 42 (addrs !! 2))
                 & Tx.lock
-                & Tx.signWith key0
+                & Tx.signWith (unsafeMkSignKey (keys !! 0))
                 & Tx.serialize
 
-        it "2 inputs, 2 outputs" $ do
+        it "1 input, 1 output (CLI)" $ do
+            compareGolden goldenTestnet__1_1 . fromBase64E =<< (
+                  cardanoTx [ "empty", testnetMagicT ] ""
+              >>= cardanoTx [ "add-input", "0", txids !! 0 ]
+              >>= cardanoTx [ "add-output", "42", addrs !! 2 ]
+              >>= cardanoTx [ "lock" ]
+              >>= cardanoTx [ "sign-with", keys !! 0 ]
+              >>= cardanoTx [ "serialize" ])
+
+        it "2 inputs, 2 outputs (DSL)" $ do
             compareGolden goldenTestnet__2_2 $ Tx.empty testnetMagic
-                & Tx.addInput inp0
-                & Tx.addInput inp1
-                & Tx.addOutput out0
-                & Tx.addOutput out1
+                & Tx.addInput (unsafeMkInput 0 (txids !! 0))
+                & Tx.addInput (unsafeMkInput 1 (txids !! 0))
+                & Tx.addOutput (unsafeMkOutput 42 (addrs !! 2))
+                & Tx.addOutput (unsafeMkOutput 14 (addrs !! 3))
                 & Tx.lock
-                & Tx.signWith key0
-                & Tx.signWith key1
+                & Tx.signWith (unsafeMkSignKey (keys !! 0))
+                & Tx.signWith (unsafeMkSignKey (keys !! 1))
                 & Tx.serialize
 
-        it "1 input, 25 outputs" $ do
+        it "2 inputs, 2 outputs (CLI)" $ do
+            compareGolden goldenTestnet__2_2 . fromBase64E =<< (
+                  cardanoTx [ "empty", testnetMagicT ] ""
+              >>= cardanoTx [ "add-input", "0", txids !! 0 ]
+              >>= cardanoTx [ "add-input", "1", txids !! 0 ]
+              >>= cardanoTx [ "add-output", "42", addrs !! 2 ]
+              >>= cardanoTx [ "add-output", "14", addrs !! 3 ]
+              >>= cardanoTx [ "lock" ]
+              >>= cardanoTx [ "sign-with", keys !! 0 ]
+              >>= cardanoTx [ "sign-with", keys !! 1 ]
+              >>= cardanoTx [ "serialize" ])
+
+        it "1 input, 25 outputs (DSL)" $ do
             compareGolden goldenTestnet__25_1 $ Tx.empty testnetMagic
-                & Tx.addInput inp0
-                & flip (foldr Tx.addOutput) (replicate 25 out2)
+                & Tx.addInput (unsafeMkInput 0 (txids !! 0))
+                & flip (foldr Tx.addOutput) (replicate 25 $ unsafeMkOutput 14 (addrs !! 2))
                 & Tx.lock
-                & Tx.signWith key0
+                & Tx.signWith (unsafeMkSignKey (keys !! 0))
                 & Tx.serialize
-  where
-    Just inp0 = mkInput 0 $ unsafeB16
-        "3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7"
 
-    Just inp1 = mkInput 1 $ unsafeB16
-        "3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7"
 
-    Just key0 = mkSignKey $ unsafeB16
-        "e0860dab46f13e74ab834142e8877b80bf22044cae8ebab7a21ed1b8dc00c155\
-        \f6b78eee2a5bbd453ce7e7711b2964abb6a36837e475271f18ff36ae5fc8af73\
-        \e25db39fb78e74d4b53fb51776d0f5eb360e62d09b853f3a87ac25bf834ee1fb"
+        it "1 input, 25 outputs (CLI)" $ do
+            compareGolden goldenTestnet__25_1 . fromBase64E =<< (
+                  cardanoTx [ "empty", testnetMagicT ] ""
+              >>= cardanoTx [ "add-input", "0", txids !! 0 ]
+              >>= flip (foldM (&)) (replicate 25 $ cardanoTx [ "add-output", "14", addrs !! 2 ])
+              >>= cardanoTx [ "lock" ]
+              >>= cardanoTx [ "sign-with", keys !! 0 ]
+              >>= cardanoTx [ "serialize" ])
 
-    Just key1 = mkSignKey $ unsafeB16
-        "00bc08703e4bb4d9fe6edf4ad2ccb1ffc6fb8d555d96805d643e5d06afde605c\
-        \e7d41d056def11417b17d3fb7415392b5f329877f372e55b0959c71b2bd2b447\
-        \1bbf1c6081545b1ab140578d7b5c035bf904d05dd8e9b79b34d3160f86206bfc"
+    describe "Negative tests" $ do
+        it "Missing Input" $ do
+            let result = Tx.empty mainnetMagic
+                       & Tx.addOutput (unsafeMkOutput 14 (addrs !! 0))
+                       & Tx.lock
+                       & Tx.serialize
+            result `shouldBe` Left MissingInput
+
+        it "Missing Output" $ do
+            let result = Tx.empty mainnetMagic
+                       & Tx.addInput (unsafeMkInput 0 (txids !! 0))
+                       & Tx.lock
+                       & Tx.serialize
+            result `shouldBe` Left MissingOutput
+
+        it "Missing Signature" $ do
+            let result = Tx.empty mainnetMagic
+                       & Tx.addInput (unsafeMkInput 0 (txids !! 0))
+                       & Tx.addOutput (unsafeMkOutput 14 (addrs !! 0))
+                       & Tx.lock
+                       & Tx.serialize
+            result `shouldBe` Left MissingSignature
 
 --
 -- Property: Roundtrip CBOR
@@ -224,9 +286,9 @@ compareGolden
         -- ^ An expected encoded result
     -> Either e ByteString
         -- ^ The actual string received
-    -> Property
-compareGolden _want (Left e)   = monadicIO $ run $ expectationFailure (show e)
-compareGolden want (Right got) =
+    -> IO ()
+compareGolden _want (Left e)   = expectationFailure (show e)
+compareGolden want (Right got) = quickCheck $ withMaxSuccess 1 $
     -- NOTE Using QuickCheck here simply for getting better counter examples
     -- than HSpec in case of failure...
     conjoin (uncurry (===) <$> zip (lines prettyWant) (lines prettyGot))
@@ -242,6 +304,15 @@ compareGolden want (Right got) =
 -- Internal
 --
 
+unsafeMkInput :: Word32 -> Text -> Input Byron
+unsafeMkInput ix str = fromJust $ mkInput ix (unsafeB16 str)
+
+unsafeMkOutput :: Natural -> Text -> Output Byron
+unsafeMkOutput n str = fromJust $ mkOutput n (unsafeB58 str)
+
+unsafeMkSignKey :: Text -> SignKey Byron
+unsafeMkSignKey str = fromJust $ mkSignKey (unsafeB16 str)
+
 unsafeB16 :: Text -> ByteString
 unsafeB16 = fromMaybe (error msg) . fromBase16
   where msg = "unable to decode base16 string."
@@ -250,9 +321,56 @@ unsafeB58 :: Text -> ByteString
 unsafeB58 = fromMaybe (error msg) . fromBase58
   where msg = "unable to decode base58 string."
 
+fromBase64E :: Text -> Either String ByteString
+fromBase64E = maybe (Left msg) Right . fromBase64
+  where msg = "unable to decode base64 string."
+
+mainnetMagicT :: Text
+mainnetMagicT = T.pack $ show $ unProtocolMagicId mainnetMagic
+
+testnetMagicT :: Text
+testnetMagicT = T.pack $ show $ unProtocolMagicId testnetMagic
+
+cardanoTx
+    :: [Text]
+        -- ^ Arguments
+    -> Text
+        -- ^ stdin
+    -> IO Text
+        -- ^ stdout
+cardanoTx args =
+    fmap T.pack . readProcess "cardano-tx" (T.unpack <$> args) . T.unpack
+
 --
 -- Test Vectors
 --
+
+txids :: [Text]
+txids =
+    [ "3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7"
+    ]
+
+addrs :: [Text]
+addrs =
+    -- Mainnet
+    [ "Ae2tdPwUPEZETXfbQxKMkMJQY1MoHCBS7bkw6TmhLjRvi9LZh1uDnXy319f"
+    , "Ae2tdPwUPEZ69HTPqLpnFFw2MAfwdEoV5cpVQP5Uy1bPijSEHQmMXUfT3q5"
+
+    -- Testnet
+    , "2cWKMJemoBajc46Wu4Z7e6bG48myZWfB7Z6pD77L6PrJQWt9HZ3Yv7o8CYZTBMqHTPTkv"
+    , "2cWKMJemoBaiLiNB8QpHKjkQhnPdQSyxaLb8JJFUQYpiVzgEJE59fN7V7StqnyDuDjHYJ"
+    ]
+
+keys :: [Text]
+keys =
+    [ "e0860dab46f13e74ab834142e8877b80bf22044cae8ebab7a21ed1b8dc00c155\
+      \f6b78eee2a5bbd453ce7e7711b2964abb6a36837e475271f18ff36ae5fc8af73\
+      \e25db39fb78e74d4b53fb51776d0f5eb360e62d09b853f3a87ac25bf834ee1fb"
+
+    , "00bc08703e4bb4d9fe6edf4ad2ccb1ffc6fb8d555d96805d643e5d06afde605c\
+      \e7d41d056def11417b17d3fb7415392b5f329877f372e55b0959c71b2bd2b447\
+      \1bbf1c6081545b1ab140578d7b5c035bf904d05dd8e9b79b34d3160f86206bfc"
+    ]
 
 goldenMainnet__1_1 :: ByteString
 goldenMainnet__1_1 = unsafeB16
