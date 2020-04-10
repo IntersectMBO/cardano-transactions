@@ -1,6 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Main where
@@ -61,7 +62,7 @@ import Options.Applicative
     , subparser
     )
 import Options.Applicative.Help.Pretty
-    ( indent, string, vsep )
+    ( hardline, indent, string, vsep )
 import System.Console.ANSI
     ( Color (..)
     , ColorIntensity (..)
@@ -147,6 +148,46 @@ data Cmd
 
 cmd :: ParserInfo Cmd
 cmd = info (helper <*> cmds) $ progDesc "cardano-tx"
+    <> headerDoc (Just $ vsep
+        [ string "Construct and sign transactions according to the following state-machine:"
+        , hardline
+        , string "                           empty                    "
+        , string "                             |                      "
+        , string "      *------------------*   |   *-----------------*"
+        , string "      |                  |   |   |                 |"
+        , string "      |                  v   v   v                 |"
+        , string "      *--- add-output ---=========--- add-input ---*"
+        , string "                             |                      "
+        , string "                             |                      "
+        , string "                           lock   *----------------*"
+        , string "                             |    |                |"
+        , string "                             |    v                |"
+        , string "                         =========--- sign-with ---*"
+        , string "                             |                      "
+        , string "                             |                      "
+        , string "                         serialize                  "
+        , string "                             |                      "
+        , string "                             |                      "
+        , string "                             v                      "
+        , hardline
+        , string "/!\\ Except 'serialize', every command outputs an intermediate \
+            \state that is of little use and shouldn't be tempered with."
+        , string "Redirect the output to a file, or use Unix pipes as shown below."
+        ])
+    <> footerDoc (Just $ vsep
+        [ "Example:"
+        , indent 2 $ string "cardano-tx empty 764824073 \\"
+        , indent 2 $ string "  | cardano-tx add-input 0 \\"
+        , indent 2 $ string "      3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7 \\"
+        , indent 2 $ string "  | cardano-tx add-output 42 \\"
+        , indent 2 $ string "      Ae2tdPwUPEZETXfbQxKMkMJQY1MoHCBS7bkw6TmhLjRvi9LZh1uDnXy319f \\"
+        , indent 2 $ string "  | cardano-tx lock \\"
+        , indent 2 $ string "  | cardano-tx sign-with \\"
+        , indent 2 $ string "      e0860dab46f13e74ab834142e8877b80bf22044cae8ebab7a21ed1b8dc00c155 \\"
+        , indent 2 $ string "      f6b78eee2a5bbd453ce7e7711b2964abb6a36837e475271f18ff36ae5fc8af73 \\"
+        , indent 2 $ string "      e25db39fb78e74d4b53fb51776d0f5eb360e62d09b853f3a87ac25bf834ee1fb \\"
+        , indent 2 $ string "  | cardano-tx serialize"
+        ])
   where
     cmds = subparser $ mconcat
         [ cmdEmpty
@@ -350,17 +391,37 @@ fromBase64 = either (const Nothing) Just . convertFromBase Base64 . T.encodeUtf8
 -- | Deserialize data from a /Base64/ CBOR 'ByteString', or fail.
 hGetState :: Handle -> (forall s. CBOR.Decoder s a) -> IO a
 hGetState h decoder = do
-    bytes <- fromBase64 . T.decodeUtf8 <$> BS.hGetContents h
-    case bytes of
+    bytes <- stripPEM . T.decodeUtf8 <$> BS.hGetContents h
+    case fromBase64 bytes of
         Nothing -> failWith
             "Unable to decode intermediate buffer. Did you manually crafted one?"
         Just cbor -> case CBOR.deserialiseFromBytes decoder (BL.fromStrict cbor) of
             Left e -> failWith (show e)
             Right (_, a) -> pure a
+  where
+    stripPEM =
+        T.replace "\n" "" . T.unlines . dropFromEnd 1 . drop 2 . T.lines
+    dropFromEnd n =
+        reverse . drop n . reverse
 
 -- | Helper to output a given state to the console
 hPutState :: Handle -> CBOR.Encoding -> IO ()
-hPutState h = TIO.hPutStr h . base64 . CBOR.toStrictByteString
+hPutState h =
+    TIO.hPutStr h . encodePEM . base64 . CBOR.toStrictByteString
+  where
+    encodePEM :: Text -> Text
+    encodePEM body = T.unlines
+        [ "-----BEGIN CARDANO TX-----"
+        , "version: 1.0.0"
+        , T.intercalate "\n" (mkGroupsOf 64 body)
+        , "-----END CARDANO TX-----"
+        ]
+
+    mkGroupsOf :: Int -> Text -> [Text]
+    mkGroupsOf n xs
+        | T.null xs = []
+        | otherwise = (T.take n xs) : mkGroupsOf n (T.drop n xs)
+
 
 -- | Fail with a colored red error message.
 failWith :: String -> IO a

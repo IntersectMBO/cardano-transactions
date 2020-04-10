@@ -13,9 +13,9 @@
 This library provides a simple interface for building transactions on Cardano. It also
 provides a small command-line interface for playing around in a terminal.
 
-## Byron
+## Payment
 
-For _Byron_, the library exposes an interface for constructing simple UTxO transactions (a.k.a _Payment_).
+We call _Payment_ a simple UTxO transactions with no metadata, moving funds from a set of inputs to a set of outputs.
 
 Payments are constructed from a small set of primitives, following the given state-machine:
 
@@ -120,16 +120,11 @@ cardano-tx empty 764824073 \
   | cardano-tx serialize
 ```
 
-## Shelley
-
-:construction: coming soon :construction:
-
 ## About Library Dependencies
 
 This library requires quite a few exotic dependencies from the cardano realm which aren't
 necessarily on hackage nor stackage. The dependencies are listed in [stack.yaml](https://github.com/input-output-hk/cardano-transactions/blob/master/stack.yaml#L7-L33),
 make sure to also include those for importing `cardano-transactions`.
-
 
 <hr/>
 
