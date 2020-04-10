@@ -1,6 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Main where
@@ -350,17 +351,37 @@ fromBase64 = either (const Nothing) Just . convertFromBase Base64 . T.encodeUtf8
 -- | Deserialize data from a /Base64/ CBOR 'ByteString', or fail.
 hGetState :: Handle -> (forall s. CBOR.Decoder s a) -> IO a
 hGetState h decoder = do
-    bytes <- fromBase64 . T.decodeUtf8 <$> BS.hGetContents h
-    case bytes of
+    bytes <- stripPEM . T.decodeUtf8 <$> BS.hGetContents h
+    case fromBase64 bytes of
         Nothing -> failWith
             "Unable to decode intermediate buffer. Did you manually crafted one?"
         Just cbor -> case CBOR.deserialiseFromBytes decoder (BL.fromStrict cbor) of
             Left e -> failWith (show e)
             Right (_, a) -> pure a
+  where
+    stripPEM =
+        T.replace "\n" "" . T.unlines . dropFromEnd 1 . drop 2 . T.lines
+    dropFromEnd n =
+        reverse . drop n . reverse
 
 -- | Helper to output a given state to the console
 hPutState :: Handle -> CBOR.Encoding -> IO ()
-hPutState h = TIO.hPutStr h . base64 . CBOR.toStrictByteString
+hPutState h =
+    TIO.hPutStr h . encodePEM . base64 . CBOR.toStrictByteString
+  where
+    encodePEM :: Text -> Text
+    encodePEM body = T.unlines
+        [ "-----BEGIN CARDANO TX-----"
+        , "version: 1.0.0"
+        , T.intercalate "\n" (mkGroupsOf 64 body)
+        , "-----END CARDANO TX-----"
+        ]
+
+    mkGroupsOf :: Int -> Text -> [Text]
+    mkGroupsOf n xs
+        | T.null xs = []
+        | otherwise = (T.take n xs) : mkGroupsOf n (T.drop n xs)
+
 
 -- | Fail with a colored red error message.
 failWith :: String -> IO a
