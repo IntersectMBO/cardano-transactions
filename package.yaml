@@ -51,11 +51,8 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - ansi-terminal
-    - base58-bytestring
     - bytestring
-    - cardano-binary
     - cardano-transactions
-    - cardano-crypto-wrapper
     - cborg
     - memory
     - optparse-applicative
@@ -66,7 +63,7 @@ tests:
     source-dirs: test
     main: Main.hs
     ghc-options:
-      #    - -Werror
+    - -Werror
     - -Wall
     - -Wcompat
     - -fwarn-redundant-constraints
@@ -75,7 +72,6 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - bytestring
-    - cardano-crypto
     - cardano-crypto-wrapper
     - cardano-ledger
     - cardano-ledger-test
@@ -83,7 +79,6 @@ tests:
     - cborg
     - hedgehog-quickcheck
     - hspec
-    - memory
     - process
     - QuickCheck
     - text
