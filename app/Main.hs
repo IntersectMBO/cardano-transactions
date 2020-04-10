@@ -8,6 +8,8 @@ module Main where
 
 import Prelude
 
+import Control.Applicative
+    ( (<|>) )
 import Control.Exception
     ( bracket )
 import Control.Monad
@@ -49,11 +51,14 @@ import Options.Applicative
     , auto
     , command
     , customExecParser
+    , flag
+    , flag'
     , footerDoc
     , header
     , headerDoc
     , helper
     , info
+    , long
     , maybeReader
     , metavar
     , prefs
@@ -123,11 +128,11 @@ main = setup >> parseCmd >>= \case
                 let state' = Tx.signWith signKey state
                 hPutState stdout (encodeTx state')
 
-    CmdSerialize -> do
+    CmdSerialize Serialize{base} -> do
         state <- hGetState stdin decodeTx
         case Tx.serialize state of
             Left e -> failWith (show e)
-            Right bytes -> TIO.putStr (base64 bytes)
+            Right bytes -> TIO.putStr $ T.decodeUtf8 $ convertToBase base bytes
   where
     setup :: IO ()
     setup = do
@@ -143,7 +148,7 @@ data Cmd
     | CmdAddOutput AddOutput
     | CmdLock
     | CmdSignWith SignWith
-    | CmdSerialize
+    | CmdSerialize Serialize
     deriving (Show)
 
 cmd :: ParserInfo Cmd
@@ -350,11 +355,23 @@ prvKeyArg = bytesArgument (Just 96) fromBase16 $
 -- |___/\___|_|  |_|\__,_|_|_/___\___|
 --
 
+newtype Serialize = Serialize
+    { base :: Base
+    } deriving Show
+
 cmdSerialize :: Mod CommandFields Cmd
 cmdSerialize = command "serialize" $
-    info (helper <*> pure CmdSerialize) $ mconcat
+    info (helper <*> fmap CmdSerialize subCmd) $ mconcat
         [ progDesc "Serialize the signed transaction to binary."
         ]
+  where
+    subCmd = serializeArg
+
+serializeArg :: Parser Serialize
+serializeArg = base16Flag <|> base64Flag
+  where
+    base16Flag = flag' (Serialize Base16) (long "base16")
+    base64Flag = flag (Serialize Base64) (Serialize Base64) (long "base64")
 
 --  _   _      _
 -- | | | |    | |

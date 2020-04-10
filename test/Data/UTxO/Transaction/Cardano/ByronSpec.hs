@@ -101,13 +101,18 @@ spec = do
                 & Tx.serialize
 
         it "1 input, 1 output (CLI)" $ do
-            compareGolden goldenMainnet__1_1 . fromBase64E =<< (
-                  cardanoTx [ "empty", mainnetMagicT ] ""
-              >>= cardanoTx [ "add-input", "0", txids !! 0 ]
-              >>= cardanoTx [ "add-output", "42", addrs !! 0 ]
-              >>= cardanoTx [ "lock" ]
-              >>= cardanoTx [ "sign-with", keys !! 0 ]
-              >>= cardanoTx [ "serialize" ])
+            state <- cardanoTx [ "empty", mainnetMagicT ] ""
+                 >>= cardanoTx [ "add-input", "0", txids !! 0 ]
+                 >>= cardanoTx [ "add-output", "42", addrs !! 0 ]
+                 >>= cardanoTx [ "lock" ]
+                 >>= cardanoTx [ "sign-with", keys !! 0 ]
+
+            defaul <- fromBase64E <$> cardanoTx [ "serialize" ] state
+            base16 <- fromBase16E <$> cardanoTx [ "serialize", "--base16" ] state
+            base64 <- fromBase64E <$> cardanoTx [ "serialize", "--base64" ] state
+            compareGolden goldenMainnet__1_1 base16
+            compareGolden goldenMainnet__1_1 base64
+            compareGolden goldenMainnet__1_1 defaul
 
         it "2 inputs, 2 outputs (DSL)" $ do
             compareGolden goldenMainnet__2_2 $ Tx.empty mainnetMagic
@@ -121,16 +126,21 @@ spec = do
                 & Tx.serialize
 
         it "2 inputs, 2 outputs (CLI)" $ do
-            compareGolden goldenMainnet__2_2 . fromBase64E =<< (
-                  cardanoTx [ "empty", mainnetMagicT ] ""
-              >>= cardanoTx [ "add-input", "0", txids !! 0 ]
-              >>= cardanoTx [ "add-input", "1", txids !! 0 ]
-              >>= cardanoTx [ "add-output", "42", addrs !! 0 ]
-              >>= cardanoTx [ "add-output", "14", addrs !! 1 ]
-              >>= cardanoTx [ "lock" ]
-              >>= cardanoTx [ "sign-with", keys !! 0 ]
-              >>= cardanoTx [ "sign-with", keys !! 1 ]
-              >>= cardanoTx [ "serialize" ])
+            state <- cardanoTx [ "empty", mainnetMagicT ] ""
+                 >>= cardanoTx [ "add-input", "0", txids !! 0 ]
+                 >>= cardanoTx [ "add-input", "1", txids !! 0 ]
+                 >>= cardanoTx [ "add-output", "42", addrs !! 0 ]
+                 >>= cardanoTx [ "add-output", "14", addrs !! 1 ]
+                 >>= cardanoTx [ "lock" ]
+                 >>= cardanoTx [ "sign-with", keys !! 0 ]
+                 >>= cardanoTx [ "sign-with", keys !! 1 ]
+
+            defaul <- fromBase64E <$> cardanoTx [ "serialize" ] state
+            base16 <- fromBase16E <$> cardanoTx [ "serialize", "--base16" ] state
+            base64 <- fromBase64E <$> cardanoTx [ "serialize", "--base64" ] state
+            compareGolden goldenMainnet__2_2 base16
+            compareGolden goldenMainnet__2_2 base64
+            compareGolden goldenMainnet__2_2 defaul
 
         it "1 input, 25 outputs (DSL)" $ do
             compareGolden goldenMainnet__25_1 $ Tx.empty mainnetMagic
@@ -141,13 +151,18 @@ spec = do
                 & Tx.serialize
 
         it "1 input, 25 outputs (CLI)" $ do
-            compareGolden goldenMainnet__25_1 . fromBase64E =<< (
-                  cardanoTx [ "empty", mainnetMagicT ] ""
-              >>= cardanoTx [ "add-input", "0", txids !! 0 ]
-              >>= flip (foldM (&)) (replicate 25 $ cardanoTx [ "add-output", "14", addrs !! 0])
-              >>= cardanoTx [ "lock" ]
-              >>= cardanoTx [ "sign-with", keys !! 0 ]
-              >>= cardanoTx [ "serialize" ])
+            state <- cardanoTx [ "empty", mainnetMagicT ] ""
+                 >>= cardanoTx [ "add-input", "0", txids !! 0 ]
+                 >>= flip (foldM (&)) (replicate 25 $ cardanoTx [ "add-output", "14", addrs !! 0])
+                 >>= cardanoTx [ "lock" ]
+                 >>= cardanoTx [ "sign-with", keys !! 0 ]
+
+            defaul <- fromBase64E <$> cardanoTx [ "serialize" ] state
+            base16 <- fromBase16E <$> cardanoTx [ "serialize", "--base16" ] state
+            base64 <- fromBase64E <$> cardanoTx [ "serialize", "--base64" ] state
+            compareGolden goldenMainnet__25_1 base16
+            compareGolden goldenMainnet__25_1 base64
+            compareGolden goldenMainnet__25_1 defaul
 
     describe "(Testnet) Golden Tests Transaction Construction" $ do
         it "1 input, 1 output (DSL)" $ do
@@ -159,13 +174,19 @@ spec = do
                 & Tx.serialize
 
         it "1 input, 1 output (CLI)" $ do
-            compareGolden goldenTestnet__1_1 . fromBase64E =<< (
-                  cardanoTx [ "empty", testnetMagicT ] ""
-              >>= cardanoTx [ "add-input", "0", txids !! 0 ]
-              >>= cardanoTx [ "add-output", "42", addrs !! 2 ]
-              >>= cardanoTx [ "lock" ]
-              >>= cardanoTx [ "sign-with", keys !! 0 ]
-              >>= cardanoTx [ "serialize" ])
+            state <- cardanoTx [ "empty", testnetMagicT ] ""
+                 >>= cardanoTx [ "add-input", "0", txids !! 0 ]
+                 >>= cardanoTx [ "add-output", "42", addrs !! 2 ]
+                 >>= cardanoTx [ "lock" ]
+                 >>= cardanoTx [ "sign-with", keys !! 0 ]
+
+            defaul <- fromBase64E <$> cardanoTx [ "serialize" ] state
+            base16 <- fromBase16E <$> cardanoTx [ "serialize", "--base16" ] state
+            base64 <- fromBase64E <$> cardanoTx [ "serialize", "--base64" ] state
+            compareGolden goldenTestnet__1_1 base16
+            compareGolden goldenTestnet__1_1 base64
+            compareGolden goldenTestnet__1_1 defaul
+
 
         it "2 inputs, 2 outputs (DSL)" $ do
             compareGolden goldenTestnet__2_2 $ Tx.empty testnetMagic
@@ -179,16 +200,21 @@ spec = do
                 & Tx.serialize
 
         it "2 inputs, 2 outputs (CLI)" $ do
-            compareGolden goldenTestnet__2_2 . fromBase64E =<< (
-                  cardanoTx [ "empty", testnetMagicT ] ""
-              >>= cardanoTx [ "add-input", "0", txids !! 0 ]
-              >>= cardanoTx [ "add-input", "1", txids !! 0 ]
-              >>= cardanoTx [ "add-output", "42", addrs !! 2 ]
-              >>= cardanoTx [ "add-output", "14", addrs !! 3 ]
-              >>= cardanoTx [ "lock" ]
-              >>= cardanoTx [ "sign-with", keys !! 0 ]
-              >>= cardanoTx [ "sign-with", keys !! 1 ]
-              >>= cardanoTx [ "serialize" ])
+            state <- cardanoTx [ "empty", testnetMagicT ] ""
+                 >>= cardanoTx [ "add-input", "0", txids !! 0 ]
+                 >>= cardanoTx [ "add-input", "1", txids !! 0 ]
+                 >>= cardanoTx [ "add-output", "42", addrs !! 2 ]
+                 >>= cardanoTx [ "add-output", "14", addrs !! 3 ]
+                 >>= cardanoTx [ "lock" ]
+                 >>= cardanoTx [ "sign-with", keys !! 0 ]
+                 >>= cardanoTx [ "sign-with", keys !! 1 ]
+
+            defaul <- fromBase64E <$> cardanoTx [ "serialize" ] state
+            base16 <- fromBase16E <$> cardanoTx [ "serialize", "--base16" ] state
+            base64 <- fromBase64E <$> cardanoTx [ "serialize", "--base64" ] state
+            compareGolden goldenTestnet__2_2 base16
+            compareGolden goldenTestnet__2_2 base64
+            compareGolden goldenTestnet__2_2 defaul
 
         it "1 input, 25 outputs (DSL)" $ do
             compareGolden goldenTestnet__25_1 $ Tx.empty testnetMagic
@@ -200,13 +226,19 @@ spec = do
 
 
         it "1 input, 25 outputs (CLI)" $ do
-            compareGolden goldenTestnet__25_1 . fromBase64E =<< (
-                  cardanoTx [ "empty", testnetMagicT ] ""
-              >>= cardanoTx [ "add-input", "0", txids !! 0 ]
-              >>= flip (foldM (&)) (replicate 25 $ cardanoTx [ "add-output", "14", addrs !! 2 ])
-              >>= cardanoTx [ "lock" ]
-              >>= cardanoTx [ "sign-with", keys !! 0 ]
-              >>= cardanoTx [ "serialize" ])
+            state <- cardanoTx [ "empty", testnetMagicT ] ""
+                 >>= cardanoTx [ "add-input", "0", txids !! 0 ]
+                 >>= flip (foldM (&)) (replicate 25 $ cardanoTx [ "add-output", "14", addrs !! 2])
+                 >>= cardanoTx [ "lock" ]
+                 >>= cardanoTx [ "sign-with", keys !! 0 ]
+
+            defaul <- fromBase64E <$> cardanoTx [ "serialize" ] state
+            base16 <- fromBase16E <$> cardanoTx [ "serialize", "--base16" ] state
+            base64 <- fromBase64E <$> cardanoTx [ "serialize", "--base64" ] state
+            compareGolden goldenTestnet__25_1 base16
+            compareGolden goldenTestnet__25_1 base64
+            compareGolden goldenTestnet__25_1 defaul
+
 
     describe "Negative tests" $ do
         it "Missing Input" $ do
@@ -324,6 +356,10 @@ unsafeB58 = fromMaybe (error msg) . fromBase58
 fromBase64E :: Text -> Either String ByteString
 fromBase64E = maybe (Left msg) Right . fromBase64
   where msg = "unable to decode base64 string."
+
+fromBase16E :: Text -> Either String ByteString
+fromBase16E = maybe (Left msg) Right . fromBase16
+  where msg = "unable to decode base16 string."
 
 mainnetMagicT :: Text
 mainnetMagicT = T.pack $ show $ unProtocolMagicId mainnetMagic
