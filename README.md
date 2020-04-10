@@ -109,14 +109,25 @@ case eitherTx of
 ```
 </details>
 
+### Example (CLI)
+
+```shell
+cardano-tx empty 764824073 \
+  | cardano-tx add-input 0 3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7 \
+  | cardano-tx add-output 42 Ae2tdPwUPEZETXfbQxKMkMJQY1MoHCBS7bkw6TmhLjRvi9LZh1uDnXy319f \
+  | cardano-tx lock \
+  | cardano-tx sign-with e0860dab46f13e74ab834142e8877b80bf22044cae8ebab7a21ed1b8dc00c155f6b78eee2a5bbd453ce7e7711b2964abb6a36837e475271f18ff36ae5fc8af73e25db39fb78e74d4b53fb51776d0f5eb360e62d09b853f3a87ac25bf834ee1fb \
+  | cardano-tx serialize
+```
+
 ## Shelley
 
 :construction: coming soon :construction:
 
 ## About Library Dependencies
 
-This library requires quite a few exotic dependencies from the cardano realm which aren't 
-necessarily on hackage nor stackage. The dependencies are listed in [stack.yaml](https://github.com/input-output-hk/cardano-transactions/blob/master/stack.yaml#L7-L33), 
+This library requires quite a few exotic dependencies from the cardano realm which aren't
+necessarily on hackage nor stackage. The dependencies are listed in [stack.yaml](https://github.com/input-output-hk/cardano-transactions/blob/master/stack.yaml#L7-L33),
 make sure to also include those for importing `cardano-transactions`.
 
 
