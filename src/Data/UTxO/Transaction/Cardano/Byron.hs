@@ -22,6 +22,7 @@ module Data.UTxO.Transaction.Cardano.Byron
     -- * Converting From Bases
     , fromBase16
     , fromBase58
+    , fromBase64
 
     -- Internal
     , Byron
@@ -195,6 +196,13 @@ fromBase16 = either (const Nothing) Just . convertFromBase Base16 . T.encodeUtf8
 -- @since 1.0.0
 fromBase58 :: Text -> Maybe ByteString
 fromBase58 = decodeBase58 bitcoinAlphabet . T.encodeUtf8
+
+
+-- | Convert a base64 encoded 'Text' into a raw 'ByteString'
+--
+-- @since 1.0.0
+fromBase64 :: Text -> Maybe ByteString
+fromBase64 = either (const Nothing) Just . convertFromBase Base64 . T.encodeUtf8
 
 --
 -- MkPayment instance
