@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE DataKinds #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE RankNTypes #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE TypeFamilyDependencies #-}</span><span>
+</span><a name="line-4"></a><span>
+</span><a name="line-5"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.UTxO.Transaction</span><span>
+</span><a name="line-6"></a><span>    </span><span class="hs-special">(</span><span>
+</span><a name="line-7"></a><span>    </span><span class="hs-comment">-- * Overview</span><span>
+</span><a name="line-8"></a><span>    </span><span class="hs-comment">-- $overview</span><span>
+</span><a name="line-9"></a><span>
+</span><a name="line-10"></a><span>    </span><span class="hs-comment">-- * Abstraction</span><span>
+</span><a name="line-11"></a><span>      </span><a href="Data.UTxO.Transaction.html#MkPayment"><span class="hs-identifier hs-type">MkPayment</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-12"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.UTxO.Transaction.html#ErrMkPayment"><span class="hs-identifier hs-type">ErrMkPayment</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-13"></a><span>
+</span><a name="line-14"></a><span>    </span><span class="hs-comment">-- * Note about type-level constraints</span><span>
+</span><a name="line-15"></a><span>    </span><span class="hs-comment">-- $note</span><span>
+</span><a name="line-16"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-17"></a><span>
+</span><a name="line-18"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
+</span><a name="line-19"></a><span>
+</span><a name="line-20"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.ByteString</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">ByteString</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-22"></a><span>
+</span><a name="line-23"></a><span class="hs-comment">-- $overview</span><span>
+</span><a name="line-24"></a><span class="hs-comment">--</span><span>
+</span><a name="line-25"></a><span class="hs-comment">-- This module offers an abstraction over the construction of simple UTxO</span><span>
+</span><a name="line-26"></a><span class="hs-comment">-- transactions. Such a transaction is called a /Payment/. Payments are</span><span>
+</span><a name="line-27"></a><span class="hs-comment">-- constructed by selecting inputs and outputs, and signing each input</span><span>
+</span><a name="line-28"></a><span class="hs-comment">-- independently.</span><span>
+</span><a name="line-29"></a><span class="hs-comment">--</span><span>
+</span><a name="line-30"></a><span class="hs-comment">-- This can be represented as a state machine, such as:</span><span>
+</span><a name="line-31"></a><span class="hs-comment">--</span><span>
+</span><a name="line-32"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-33"></a><span class="hs-comment">--                          empty</span><span>
+</span><a name="line-34"></a><span class="hs-comment">--                            |</span><span>
+</span><a name="line-35"></a><span class="hs-comment">--      *-----------------*   |   *----------------*</span><span>
+</span><a name="line-36"></a><span class="hs-comment">--      |                 |   |   |                |</span><span>
+</span><a name="line-37"></a><span class="hs-comment">--      |                 v   v   v                |</span><span>
+</span><a name="line-38"></a><span class="hs-comment">--      *--- addOutput ---=========--- addInput ---*</span><span>
+</span><a name="line-39"></a><span class="hs-comment">--                            |</span><span>
+</span><a name="line-40"></a><span class="hs-comment">--                            |</span><span>
+</span><a name="line-41"></a><span class="hs-comment">--                          lock  *----------------*</span><span>
+</span><a name="line-42"></a><span class="hs-comment">--                            |   |                |</span><span>
+</span><a name="line-43"></a><span class="hs-comment">--                            |   v                |</span><span>
+</span><a name="line-44"></a><span class="hs-comment">--                        =========--- signWith ---*</span><span>
+</span><a name="line-45"></a><span class="hs-comment">--                            |</span><span>
+</span><a name="line-46"></a><span class="hs-comment">--                            |</span><span>
+</span><a name="line-47"></a><span class="hs-comment">--                        serialize</span><span>
+</span><a name="line-48"></a><span class="hs-comment">--                            |</span><span>
+</span><a name="line-49"></a><span class="hs-comment">--                            |</span><span>
+</span><a name="line-50"></a><span class="hs-comment">--                            v</span><span>
+</span><a name="line-51"></a><span class="hs-comment">--                           ...</span><span>
+</span><a name="line-52"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-53"></a><span class="hs-comment">--</span><span>
+</span><a name="line-54"></a><span class="hs-comment">-- Functions from the 'MkPayment' interfaces are designed to be easy to chain</span><span>
+</span><a name="line-55"></a><span class="hs-comment">-- like pipes. To give a concrete example, let's see how to construct a</span><span>
+</span><a name="line-56"></a><span class="hs-comment">-- transaction with /one input/ and /two outputs/:</span><span>
+</span><a name="line-57"></a><span class="hs-comment">--</span><span>
+</span><a name="line-58"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-59"></a><span class="hs-comment">-- import Data.Function</span><span>
+</span><a name="line-60"></a><span class="hs-comment">--     ( (&amp;) )</span><span>
+</span><a name="line-61"></a><span class="hs-comment">-- import qualified Data.UTxO.Transaction as Tx</span><span>
+</span><a name="line-62"></a><span class="hs-comment">--</span><span>
+</span><a name="line-63"></a><span class="hs-comment">-- bytes = Tx.empty</span><span>
+</span><a name="line-64"></a><span class="hs-comment">--       &amp; Tx.addInput  input0</span><span>
+</span><a name="line-65"></a><span class="hs-comment">--       &amp; Tx.addOutput output0</span><span>
+</span><a name="line-66"></a><span class="hs-comment">--       &amp; Tx.addOutput output1</span><span>
+</span><a name="line-67"></a><span class="hs-comment">--       &amp; Tx.lock</span><span>
+</span><a name="line-68"></a><span class="hs-comment">--       &amp; Tx.signWith  key0</span><span>
+</span><a name="line-69"></a><span class="hs-comment">--       &amp; Tx.serialize</span><span>
+</span><a name="line-70"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-71"></a><span class="hs-comment">--</span><span>
+</span><a name="line-72"></a><span class="hs-comment">-- The reason why the 'lock' step is required is because, in order to create</span><span>
+</span><a name="line-73"></a><span class="hs-comment">-- witnesses, one must produce signatures of the whole transaction body (inputs</span><span>
+</span><a name="line-74"></a><span class="hs-comment">-- + outputs). Hence, signatures can only be added once all inputs and all</span><span>
+</span><a name="line-75"></a><span class="hs-comment">-- outputs have already been addded.</span><span>
+</span><a name="line-76"></a><span class="hs-comment">--</span><span>
+</span><a name="line-77"></a><span class="hs-comment">-- This is correct-by-construction thanks to the 'lock' step and the distinction</span><span>
+</span><a name="line-78"></a><span class="hs-comment">-- between 'CoinSel' and 'Tx'.</span><span>
+</span><a name="line-79"></a><span>
+</span><a name="line-80"></a><span class="hs-comment">-- | Abstract interface for constructing a /Payment/.</span><span>
+</span><a name="line-81"></a><span class="hs-keyword">class</span><span> </span><a name="MkPayment"><a href="Data.UTxO.Transaction.html#MkPayment"><span class="hs-identifier">MkPayment</span></a></a><span> </span><a name="local-6989586621679029876"><a href="#local-6989586621679029876"><span class="hs-identifier">dom</span></a></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-82"></a><span>    </span><span class="hs-comment">-- | Some initial extra data needed to construct and or serialize the</span><span>
+</span><a name="line-83"></a><span>    </span><span class="hs-comment">-- transaction. This is a free-type which is implementation-specific.</span><span>
+</span><a name="line-84"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-85"></a><span>    </span><span class="hs-comment">-- For example, Byron transactions requires the underlying protocol magic in</span><span>
+</span><a name="line-86"></a><span>    </span><span class="hs-comment">-- order to produce witnesses. This is an appropriate place for.</span><span>
+</span><a name="line-87"></a><span>    </span><span class="hs-keyword">type</span><span> </span><a name="Init"><a href="Data.UTxO.Transaction.html#Init"><span class="hs-identifier">Init</span></a></a><span>    </span><a name="local-6989586621679029876"><a href="#local-6989586621679029876"><span class="hs-identifier">dom</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-operator">*</span><span>
+</span><a name="line-88"></a><span>
+</span><a name="line-89"></a><span>    </span><span class="hs-comment">-- | Type representation of transaction 'Input'</span><span>
+</span><a name="line-90"></a><span>    </span><span class="hs-keyword">type</span><span> </span><a name="Input"><a href="Data.UTxO.Transaction.html#Input"><span class="hs-identifier">Input</span></a></a><span>   </span><a name="local-6989586621679029876"><a href="#local-6989586621679029876"><span class="hs-identifier">dom</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="local-6989586621679029877"><a href="#local-6989586621679029877"><span class="hs-identifier">inp</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-identifier">inp</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">dom</span><span>
+</span><a name="line-91"></a><span>
+</span><a name="line-92"></a><span>    </span><span class="hs-comment">-- | Type representation of transaction 'Output'</span><span>
+</span><a name="line-93"></a><span>    </span><span class="hs-keyword">type</span><span> </span><a name="Output"><a href="Data.UTxO.Transaction.html#Output"><span class="hs-identifier">Output</span></a></a><span>  </span><a name="local-6989586621679029876"><a href="#local-6989586621679029876"><span class="hs-identifier">dom</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="local-6989586621679029878"><a href="#local-6989586621679029878"><span class="hs-identifier">out</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-identifier">out</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">dom</span><span>
+</span><a name="line-94"></a><span>
+</span><a name="line-95"></a><span>    </span><span class="hs-comment">-- | Type representation of transaction 'SignKey'</span><span>
+</span><a name="line-96"></a><span>    </span><span class="hs-keyword">type</span><span> </span><a name="SignKey"><a href="Data.UTxO.Transaction.html#SignKey"><span class="hs-identifier">SignKey</span></a></a><span> </span><a name="local-6989586621679029876"><a href="#local-6989586621679029876"><span class="hs-identifier">dom</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="local-6989586621679029879"><a href="#local-6989586621679029879"><span class="hs-identifier">key</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-identifier">key</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">dom</span><span>
+</span><a name="line-97"></a><span>
+</span><a name="line-98"></a><span>    </span><span class="hs-comment">-- | An intermediate type for representing a transaction under construction.</span><span>
+</span><a name="line-99"></a><span>    </span><span class="hs-comment">-- 'Input' and 'Output' can still be added to a 'CoinSel' and must be added</span><span>
+</span><a name="line-100"></a><span>    </span><span class="hs-comment">-- before trying to sign any of the inputs.</span><span>
+</span><a name="line-101"></a><span>    </span><span class="hs-keyword">type</span><span> </span><a name="CoinSel"><a href="Data.UTxO.Transaction.html#CoinSel"><span class="hs-identifier">CoinSel</span></a></a><span> </span><a name="local-6989586621679029876"><a href="#local-6989586621679029876"><span class="hs-identifier">dom</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="local-6989586621679029880"><a href="#local-6989586621679029880"><span class="hs-identifier">sel</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-identifier">sel</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">dom</span><span>
+</span><a name="line-102"></a><span>
+</span><a name="line-103"></a><span>    </span><span class="hs-comment">-- | A transaction is a locked 'CoinSel' to which it is no longer possible</span><span>
+</span><a name="line-104"></a><span>    </span><span class="hs-comment">-- to add new 'Input' and or 'Output'. Only 'Tx' can be serialized.</span><span>
+</span><a name="line-105"></a><span>    </span><span class="hs-keyword">type</span><span> </span><a name="Tx"><a href="Data.UTxO.Transaction.html#Tx"><span class="hs-identifier">Tx</span></a></a><span>      </span><a name="local-6989586621679029876"><a href="#local-6989586621679029876"><span class="hs-identifier">dom</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="local-6989586621679029881"><a href="#local-6989586621679029881"><span class="hs-identifier">tx</span></a></a><span>  </span><span class="hs-glyph">|</span><span> </span><span class="hs-identifier">tx</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">dom</span><span>
+</span><a name="line-106"></a><span>
+</span><a name="line-107"></a><span>    </span><span class="hs-comment">-- * Transaction construction</span><span>
+</span><a name="line-108"></a><span>    </span><a name="empty"><a href="Data.UTxO.Transaction.html#empty"><span class="hs-identifier">empty</span></a></a><span>     </span><span class="hs-glyph">::</span><span> </span><a href="Data.UTxO.Transaction.html#Init"><span class="hs-identifier hs-type">Init</span></a><span> </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Data.UTxO.Transaction.html#CoinSel"><span class="hs-identifier hs-type">CoinSel</span></a><span> </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span>
+</span><a name="line-109"></a><span>    </span><a name="addInput"><a href="Data.UTxO.Transaction.html#addInput"><span class="hs-identifier">addInput</span></a></a><span>  </span><span class="hs-glyph">::</span><span> </span><a href="Data.UTxO.Transaction.html#Input"><span class="hs-identifier hs-type">Input</span></a><span>  </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Data.UTxO.Transaction.html#CoinSel"><span class="hs-identifier hs-type">CoinSel</span></a><span> </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Data.UTxO.Transaction.html#CoinSel"><span class="hs-identifier hs-type">CoinSel</span></a><span> </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span>
+</span><a name="line-110"></a><span>    </span><a name="addOutput"><a href="Data.UTxO.Transaction.html#addOutput"><span class="hs-identifier">addOutput</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="Data.UTxO.Transaction.html#Output"><span class="hs-identifier hs-type">Output</span></a><span> </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Data.UTxO.Transaction.html#CoinSel"><span class="hs-identifier hs-type">CoinSel</span></a><span> </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Data.UTxO.Transaction.html#CoinSel"><span class="hs-identifier hs-type">CoinSel</span></a><span> </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span>
+</span><a name="line-111"></a><span>
+</span><a name="line-112"></a><span>    </span><span class="hs-comment">-- * Transaction signature</span><span>
+</span><a name="line-113"></a><span>    </span><a name="lock"><a href="Data.UTxO.Transaction.html#lock"><span class="hs-identifier">lock</span></a></a><span>      </span><span class="hs-glyph">::</span><span> </span><a href="Data.UTxO.Transaction.html#CoinSel"><span class="hs-identifier hs-type">CoinSel</span></a><span> </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Data.UTxO.Transaction.html#Tx"><span class="hs-identifier hs-type">Tx</span></a><span> </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span>
+</span><a name="line-114"></a><span>    </span><a name="signWith"><a href="Data.UTxO.Transaction.html#signWith"><span class="hs-identifier">signWith</span></a></a><span>  </span><span class="hs-glyph">::</span><span> </span><a href="Data.UTxO.Transaction.html#SignKey"><span class="hs-identifier hs-type">SignKey</span></a><span> </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Data.UTxO.Transaction.html#Tx"><span class="hs-identifier hs-type">Tx</span></a><span> </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Data.UTxO.Transaction.html#Tx"><span class="hs-identifier hs-type">Tx</span></a><span> </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span>
+</span><a name="line-115"></a><span>
+</span><a name="line-116"></a><span>    </span><span class="hs-comment">-- * Transaction serialization</span><span>
+</span><a name="line-117"></a><span>    </span><a name="serialize"><a href="Data.UTxO.Transaction.html#serialize"><span class="hs-identifier">serialize</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="Data.UTxO.Transaction.html#Tx"><span class="hs-identifier hs-type">Tx</span></a><span> </span><a href="#local-6989586621679029876"><span class="hs-identifier hs-type">dom</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Either</span><span> </span><a href="Data.UTxO.Transaction.html#ErrMkPayment"><span class="hs-identifier hs-type">ErrMkPayment</span></a><span> </span><span class="hs-identifier hs-type">ByteString</span><span>
+</span><a name="line-118"></a><span>
+</span><a name="line-119"></a><span class="hs-comment">-- | Possible errors occuring when constructing a /Payment/. This can in</span><span>
+</span><a name="line-120"></a><span class="hs-comment">-- practice be safely ignored if the transaction is known to be well-formed.</span><span>
+</span><a name="line-121"></a><span class="hs-keyword">data</span><span> </span><a name="ErrMkPayment"><a href="Data.UTxO.Transaction.html#ErrMkPayment"><span class="hs-identifier">ErrMkPayment</span></a></a><span>
+</span><a name="line-122"></a><span>    </span><span class="hs-glyph">=</span><span> </span><a name="MissingInput"><a href="Data.UTxO.Transaction.html#MissingInput"><span class="hs-identifier">MissingInput</span></a></a><span>
+</span><a name="line-123"></a><span>        </span><span class="hs-comment">-- ^ Payments must have at least one input.</span><span>
+</span><a name="line-124"></a><span>    </span><span class="hs-glyph">|</span><span> </span><a name="MissingOutput"><a href="Data.UTxO.Transaction.html#MissingOutput"><span class="hs-identifier">MissingOutput</span></a></a><span>
+</span><a name="line-125"></a><span>        </span><span class="hs-comment">-- ^ Payments must have at least one output</span><span>
+</span><a name="line-126"></a><span>    </span><span class="hs-glyph">|</span><span> </span><a name="MissingSignature"><a href="Data.UTxO.Transaction.html#MissingSignature"><span class="hs-identifier">MissingSignature</span></a></a><span>
+</span><a name="line-127"></a><span>        </span><span class="hs-comment">-- ^ Payments must have a signature for each input.</span><span>
+</span><a name="line-128"></a><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Read</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">)</span><span>
+</span><a name="line-129"></a><span>
+</span><a name="line-130"></a><span class="hs-comment">-- $note</span><span>
+</span><a name="line-131"></a><span class="hs-comment">--</span><span>
+</span><a name="line-132"></a><span class="hs-comment">-- It is relatively easy to tweak the interface below to get it fully type-safe</span><span>
+</span><a name="line-133"></a><span class="hs-comment">-- by using an inductive type, such as:</span><span>
+</span><a name="line-134"></a><span class="hs-comment">--</span><span>
+</span><a name="line-135"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-136"></a><span class="hs-comment">-- data N = Zero | Some N</span><span>
+</span><a name="line-137"></a><span class="hs-comment">--</span><span>
+</span><a name="line-138"></a><span class="hs-comment">-- class MkPayment dom where</span><span>
+</span><a name="line-139"></a><span class="hs-comment">--     type Init    dom :: *</span><span>
+</span><a name="line-140"></a><span class="hs-comment">--</span><span>
+</span><a name="line-141"></a><span class="hs-comment">--     type Input   dom = inp | inp -&gt; dom</span><span>
+</span><a name="line-142"></a><span class="hs-comment">--     type Output  dom = out | out -&gt; dom</span><span>
+</span><a name="line-143"></a><span class="hs-comment">--     type SignKey dom = key | key -&gt; dom</span><span>
+</span><a name="line-144"></a><span class="hs-comment">--</span><span>
+</span><a name="line-145"></a><span class="hs-comment">--     type CoinSel dom = (sel :: N -&gt; N -&gt; *) | sel -&gt; dom</span><span>
+</span><a name="line-146"></a><span class="hs-comment">--     type Tx      dom = (tx  :: N -&gt; *)      | tx  -&gt; dom</span><span>
+</span><a name="line-147"></a><span class="hs-comment">--</span><span>
+</span><a name="line-148"></a><span class="hs-comment">--     empty     :: Init dom -&gt; CoinSel dom Zero Zero</span><span>
+</span><a name="line-149"></a><span class="hs-comment">--</span><span>
+</span><a name="line-150"></a><span class="hs-comment">--     addInput  :: Input  dom -&gt; CoinSel dom n m -&gt; CoinSel dom (Some n) m</span><span>
+</span><a name="line-151"></a><span class="hs-comment">--     addOutput :: Output dom -&gt; CoinSel dom n m -&gt; CoinSel dom n (Some m)</span><span>
+</span><a name="line-152"></a><span class="hs-comment">--</span><span>
+</span><a name="line-153"></a><span class="hs-comment">--     lock      :: CoinSel dom (Some n) (Some m) -&gt; Tx dom (Some n)</span><span>
+</span><a name="line-154"></a><span class="hs-comment">--</span><span>
+</span><a name="line-155"></a><span class="hs-comment">--     signWith :: SignKey dom -&gt; Tx dom (Some n) -&gt; Tx dom n</span><span>
+</span><a name="line-156"></a><span class="hs-comment">--</span><span>
+</span><a name="line-157"></a><span class="hs-comment">--     serialize :: Tx dom Zero -&gt; ByteString</span><span>
+</span><a name="line-158"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-159"></a><span class="hs-comment">--</span><span>
+</span><a name="line-160"></a><span class="hs-comment">-- Such approach is great for ensuring that the transaction can't be ill-formed</span><span>
+</span><a name="line-161"></a><span class="hs-comment">-- and works well when manually constructing the transaction as shown above.</span><span>
+</span><a name="line-162"></a><span class="hs-comment">--</span><span>
+</span><a name="line-163"></a><span class="hs-comment">-- It gets however quite complex when one wants to start folding or mapping on a</span><span>
+</span><a name="line-164"></a><span class="hs-comment">-- list of inputs or outputs where their numbers isn't known at compile-time!</span><span>
+</span><a name="line-165"></a><span class="hs-comment">-- Indeed, each call to 'addInput' does actually return a new type!</span><span>
+</span><a name="line-166"></a><span class="hs-comment">--</span><span>
+</span><a name="line-167"></a><span class="hs-comment">-- Let's say we want to write the following function:</span><span>
+</span><a name="line-168"></a><span class="hs-comment">--</span><span>
+</span><a name="line-169"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-170"></a><span class="hs-comment">-- addMany :: [Input dom] -&gt; CoinSel dom n m -&gt; CoinSel dom ? m</span><span>
+</span><a name="line-171"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-172"></a><span class="hs-comment">--</span><span>
+</span><a name="line-173"></a><span class="hs-comment">-- What should be the type of `?`. This can't possibly known at compile-time.</span><span>
+</span><a name="line-174"></a></pre></body></html>
