@@ -126,6 +126,17 @@ This library requires quite a few exotic dependencies from the cardano realm whi
 necessarily on hackage nor stackage. The dependencies are listed in [stack.yaml](https://github.com/input-output-hk/cardano-transactions/blob/master/stack.yaml#L7-L33),
 make sure to also include those for importing `cardano-transactions`.
 
+## Documentation
+
+API documentation is available [here](https://input-output-hk.github.io/cardano-transactions/haddock).
+
+## Contributing
+
+Pull requests are welcome.
+
+When creating a pull request, please make sure that your code adheres to our
+[coding standards](https://github.com/input-output-hk/adrestia/wiki/Coding-Standards).
+
 <hr/>
 
 <p align="center">
