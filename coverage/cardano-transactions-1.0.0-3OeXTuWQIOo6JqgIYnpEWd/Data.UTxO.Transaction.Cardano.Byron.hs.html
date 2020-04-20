@@ -259,7 +259,7 @@ span.spaces    { background: white }
 <span class="lineno">  240 </span><span class="spaces">    </span><span class="istickedoff">lock (pm, inps, outs) =</span>
 <span class="lineno">  241 </span><span class="spaces">        </span><span class="istickedoff">Right (pm, neInps, neOuts, sigData, mempty)</span>
 <span class="lineno">  242 </span><span class="spaces">      </span><span class="istickedoff">where</span>
-<span class="lineno">  243 </span><span class="spaces">        </span><span class="istickedoff">sigData = TxSigData $ hash $ CC.UnsafeTx neInps neOuts (mkAttributes <span class="nottickedoff">()</span>)</span>
+<span class="lineno">  243 </span><span class="spaces">        </span><span class="istickedoff">sigData = TxSigData $ hash $ CC.UnsafeTx neInps neOuts (mkAttributes ())</span>
 <span class="lineno">  244 </span><span class="spaces">        </span><span class="istickedoff">neInps  = NE.fromList $ reverse inps</span>
 <span class="lineno">  245 </span><span class="spaces">        </span><span class="istickedoff">neOuts  = NE.fromList $ reverse outs</span></span>
 <span class="lineno">  246 </span>
@@ -279,7 +279,7 @@ span.spaces    { background: white }
 <span class="lineno">  260 </span><span class="spaces">    </span><span class="istickedoff">serialize (Right (_pm, inps, outs, _sigData, wits))</span>
 <span class="lineno">  261 </span><span class="spaces">        </span><span class="istickedoff">| NE.length inps /= length wits = Left MissingSignature</span>
 <span class="lineno">  262 </span><span class="spaces">        </span><span class="istickedoff">| <span class="tickonlytrue">otherwise</span> = Right $ CBOR.toStrictByteString $ toCBOR $ mkTxAux</span>
-<span class="lineno">  263 </span><span class="spaces">            </span><span class="istickedoff">(CC.UnsafeTx inps outs (mkAttributes <span class="nottickedoff">()</span>))</span>
+<span class="lineno">  263 </span><span class="spaces">            </span><span class="istickedoff">(CC.UnsafeTx inps outs (mkAttributes ()))</span>
 <span class="lineno">  264 </span><span class="spaces">            </span><span class="istickedoff">(fromList $ reverse wits)</span></span>
 <span class="lineno">  265 </span>
 <span class="lineno">  266 </span>
