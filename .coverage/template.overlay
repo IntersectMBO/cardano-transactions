@@ -1,0 +1,12 @@
+module "Data.UTxO.Transaction" {
+  tick function "readList" [Read instance];
+}
+module "Data.UTxO.Transaction.Cardano.Byron" {
+  inside "lock" {
+    tick "()" [Never evaluated];
+  }
+  inside "serialize" {
+    tick "()" [Never evaluated];
+  }
+}
+
