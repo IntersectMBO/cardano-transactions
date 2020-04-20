@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 533f6e12a95876d3acb529db2275e8a7074c207dcaf0f5b868d76b22d099351a
+-- hash: 76a2eb8e46b36de7aac18e5bf2688c46204545b1cdb7df6e57512b79b72e789e
 
 name:           cardano-transactions
 version:        1.0.0
@@ -26,6 +26,11 @@ extra-source-files:
 source-repository head
   type: git
   location: https://github.com/input-output-hk/cardano-transactions
+
+flag release
+  description: Compile executables for a release.
+  manual: True
+  default: False
 
 library
   exposed-modules:
@@ -66,6 +71,10 @@ executable cardano-tx
     , memory
     , optparse-applicative
     , text
+  if flag(release)
+    ghc-options: -static -O2
+    cc-options: -static
+    ld-options: -static -pthread
   default-language: Haskell2010
 
 test-suite unit

@@ -18,6 +18,12 @@ description: |
 dependencies:
 - base >= 4.7 && < 5
 
+flags:
+  release:
+    description: Compile executables for a release.
+    default: False
+    manual: True
+
 library:
   source-dirs: src
   ghc-options:
@@ -57,6 +63,13 @@ executables:
     - memory
     - optparse-applicative
     - text
+    when:
+      - condition: flag(release)
+        ghc-options:
+        - -static
+        - -O2
+        cc-options: -static
+        ld-options: -static -pthread
 
 tests:
   unit:
