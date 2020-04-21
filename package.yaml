@@ -27,8 +27,6 @@ flags:
 library:
   source-dirs: src
   ghc-options:
-  - -Werror
-  - -Wall
   - -Wcompat
   - -fwarn-redundant-constraints
   dependencies:
@@ -43,14 +41,17 @@ library:
   - extra
   - memory
   - text
+  when:
+  - condition: flag(release)
+    ghc-options:
+      - -Werror
+      - -Wall
 
 executables:
   cardano-tx:
     main: Main.hs
     source-dirs: app
     ghc-options:
-    - -Werror
-    - -Wall
     - -Wcompat
     - -fwarn-redundant-constraints
     - -threaded
@@ -65,20 +66,20 @@ executables:
     - optparse-applicative
     - text
     when:
-      - condition: flag(release)
-        ghc-options:
-        - -static
-        - -O2
-        cc-options: -static
-        ld-options: -static -pthread
+    - condition: flag(release)
+      ghc-options:
+      - -Werror
+      - -Wall
+      - -static
+      - -O2
+      cc-options: -static
+      ld-options: -static -pthread
 
 tests:
   unit:
     source-dirs: test
     main: Main.hs
     ghc-options:
-    - -Werror
-    - -Wall
     - -Wcompat
     - -fwarn-redundant-constraints
     - -threaded
@@ -98,3 +99,8 @@ tests:
     - text
     build-tools:
       cardano-tx
+    when:
+    - condition: flag(release)
+      ghc-options:
+        - -Werror
+        - -Wall

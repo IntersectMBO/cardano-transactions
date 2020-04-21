@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c24162409b9791a3b3290216d90e56a8cbfc336bc5ff6a0988458db19563d279
+-- hash: b9405fb4feb0c9a4a545e76859db770d6ce65af4316862025cd7466c9e29eb69
 
 name:           cardano-transactions
 version:        1.0.0
@@ -13,8 +13,8 @@ description:    Please see the README on GitHub at <https://github.com/input-out
 category:       Cardano
 homepage:       https://github.com/input-output-hk/cardano-transactions#readme
 bug-reports:    https://github.com/input-output-hk/cardano-transactions/issues
-author:         KtorZ <matthias.benkort@iohk.io>
-maintainer:     operations@iohk.io, matthias.benkort@iohk.io
+author:         IOHK
+maintainer:     operations@iohk.io
 copyright:      2020 IOHK
 license:        Apache-2.0
 license-file:   LICENSE
@@ -40,7 +40,7 @@ library
       Paths_cardano_transactions
   hs-source-dirs:
       src
-  ghc-options: -Werror -Wall -Wcompat -fwarn-redundant-constraints
+  ghc-options: -Wcompat -fwarn-redundant-constraints
   build-depends:
       base >=4.7 && <5
     , base58-bytestring
@@ -54,6 +54,8 @@ library
     , extra
     , memory
     , text
+  if flag(release)
+    ghc-options: -Werror -Wall
   default-language: Haskell2010
 
 executable cardano-tx
@@ -62,7 +64,7 @@ executable cardano-tx
       Paths_cardano_transactions
   hs-source-dirs:
       app
-  ghc-options: -Werror -Wall -Wcompat -fwarn-redundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wcompat -fwarn-redundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       ansi-terminal
     , base >=4.7 && <5
@@ -73,7 +75,7 @@ executable cardano-tx
     , optparse-applicative
     , text
   if flag(release)
-    ghc-options: -static -O2
+    ghc-options: -Werror -Wall -static -O2
     cc-options: -static
     ld-options: -static -pthread
   default-language: Haskell2010
@@ -86,7 +88,7 @@ test-suite unit
       Paths_cardano_transactions
   hs-source-dirs:
       test
-  ghc-options: -Werror -Wall -Wcompat -fwarn-redundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wcompat -fwarn-redundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-tools:
       cardano-tx
   build-depends:
@@ -102,4 +104,6 @@ test-suite unit
     , hspec
     , process
     , text
+  if flag(release)
+    ghc-options: -Werror -Wall
   default-language: Haskell2010
