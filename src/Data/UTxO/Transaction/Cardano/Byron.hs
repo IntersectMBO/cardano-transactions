@@ -46,10 +46,10 @@ import Cardano.Crypto.Signing
     ( SignTag (..), Signature, SigningKey (..), VerificationKey (..) )
 import Cardano.Crypto.Wallet
     ( toXPub, xprv )
-import Cardano.Crypto.Wallet.Encrypted
-    ( encryptedCreateDirectWithTweak, unEncryptedKey )
 import Codec.CBOR.Read
     ( deserialiseFromBytes )
+import Crypto.Error
+    ( eitherCryptoError )
 import Crypto.Hash
     ( Blake2b_256, digestFromByteString )
 import Data.ByteArray.Encoding
@@ -58,6 +58,8 @@ import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58 )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.List.NonEmpty
     ( NonEmpty, nonEmpty )
 import Data.Text
@@ -76,6 +78,7 @@ import qualified Cardano.Crypto.Signing as CC
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
+import qualified Crypto.ECC.Edwards25519 as Ed25519
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
@@ -176,10 +179,14 @@ mkSignKey
 mkSignKey bytes
     | BS.length bytes /= 96 = Nothing
     | otherwise = do
-        let ekey = encryptedCreateDirectWithTweak bytes (mempty :: ByteString)
-        case xprv (unEncryptedKey ekey) of
-            Right prv -> Just (SigningKey prv)
-            Left{} -> Nothing
+        let (prv, cc) = BS.splitAt 64 bytes
+        pub <- ed25519ScalarMult (BS.take 32 prv)
+        fmap SigningKey $ eitherToMaybe $ xprv $ prv <> pub <> cc
+  where
+    ed25519ScalarMult :: ByteString -> Maybe ByteString
+    ed25519ScalarMult bs = do
+        scalar <- eitherToMaybe $ eitherCryptoError $ Ed25519.scalarDecodeLong bs
+        pure $ Ed25519.pointEncode $ Ed25519.toPoint scalar
 
 --
 -- ByteString Decoding
@@ -189,7 +196,7 @@ mkSignKey bytes
 --
 -- @since 1.0.0
 fromBase16 :: Text -> Maybe ByteString
-fromBase16 = either (const Nothing) Just . convertFromBase Base16 . T.encodeUtf8
+fromBase16 = eitherToMaybe . convertFromBase Base16 . T.encodeUtf8
 
 -- | Convert a base58 encoded 'Text' into a raw 'ByteString'
 --
@@ -202,7 +209,7 @@ fromBase58 = decodeBase58 bitcoinAlphabet . T.encodeUtf8
 --
 -- @since 1.0.0
 fromBase64 :: Text -> Maybe ByteString
-fromBase64 = either (const Nothing) Just . convertFromBase Base64 . T.encodeUtf8
+fromBase64 = eitherToMaybe . convertFromBase Base64 . T.encodeUtf8
 
 --
 -- MkPayment instance

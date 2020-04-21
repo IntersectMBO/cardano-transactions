@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -23,7 +24,7 @@ import Data.Function
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
-    ( fromJust, fromMaybe )
+    ( fromJust, fromMaybe, isNothing )
 import Data.Text
     ( Text )
 import Data.UTxO.Transaction
@@ -45,7 +46,7 @@ import Data.UTxO.Transaction.Cardano.Byron
     , testnetMagic
     )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
 import Numeric.Natural
     ( Natural )
 import System.Process
@@ -54,6 +55,8 @@ import Test.Cardano.Chain.UTxO.Gen
     ( genTxIn, genTxInWitness, genTxOut, genTxSigData )
 import Test.Hspec
     ( Spec, describe, expectationFailure, it, shouldBe )
+import Test.Hspec.QuickCheck
+    ( prop )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonEmptyList (..)
@@ -61,9 +64,12 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , elements
+    , forAll
     , listOf
+    , oneof
     , property
     , quickCheck
+    , suchThat
     , withMaxSuccess
     , (===)
     )
@@ -75,6 +81,7 @@ import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Pretty as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -241,6 +248,26 @@ spec = do
 
 
     describe "Negative tests" $ do
+        prop "Invalid Input" $ \ix -> do
+            let len = 32
+            let genInvalidId = oneof
+                    [ pure ""
+                    , pure $ BS.replicate (len - 1) 0
+                    , pure $ BS.replicate (len + 1) 0
+                    , (BS.pack <$> arbitrary) `suchThat` ((/= len) . BS.length)
+                    ]
+            forAll genInvalidId (isNothing . mkInput ix)
+
+        prop "Invalid Output" $ \(coin :: Word64) -> do
+            let genInvalidAddress = BS.pack <$> arbitrary
+            forAll genInvalidAddress (isNothing . mkOutput (fromIntegral coin))
+
+        prop "Invalid SignKey" $ do
+            let len = 96
+            let genInvalidSignKey =
+                    (BS.pack <$> arbitrary) `suchThat` ((/= len) . BS.length)
+            forAll genInvalidSignKey (isNothing . mkSignKey)
+
         it "Missing Input" $ do
             let result = Tx.empty mainnetMagic
                        & Tx.addOutput (unsafeMkOutput 14 (addrs !! 0))

@@ -40,6 +40,7 @@ library:
   - cardano-ledger
   - cborg
   - cryptonite
+  - extra
   - memory
   - text
 

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 76a2eb8e46b36de7aac18e5bf2688c46204545b1cdb7df6e57512b79b72e789e
+-- hash: c24162409b9791a3b3290216d90e56a8cbfc336bc5ff6a0988458db19563d279
 
 name:           cardano-transactions
 version:        1.0.0
@@ -51,6 +51,7 @@ library
     , cardano-ledger
     , cborg
     , cryptonite
+    , extra
     , memory
     , text
   default-language: Haskell2010
