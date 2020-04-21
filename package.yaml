@@ -2,8 +2,8 @@ name:                cardano-transactions
 version:             1.0.0
 github:              "input-output-hk/cardano-transactions"
 license:             Apache-2.0
-author:              "KtorZ <matthias.benkort@iohk.io>"
-maintainer:          "operations@iohk.io, matthias.benkort@iohk.io"
+author:              IOHK
+maintainer:          "operations@iohk.io"
 copyright:           "2020 IOHK"
 synopsis:            Library utilities for constructing and signing Cardano transactions.
 category:            Cardano
