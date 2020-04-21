@@ -63,7 +63,7 @@ jobs:
         PKG_NAME=$(cat *.cabal | grep "name:" | sed "s/name:\s*\(.*\)/\1/")
         mkdir -p dist/haddock  && mv $(stack path --local-install-root)/doc/$PKG_NAME-*/* dist/haddock
         stack build --flag $PKG_NAME:release
-        mkdir -p bin && cp $(stack path --local-install-root)/bin/* exe && chmod +x bin/*
+        mkdir -p bin && cp $(stack path --local-install-root)/bin/* bin && chmod +x bin/*
 
     - name: 📤 Upload Artifact
       uses: actions/upload-artifact@v1
