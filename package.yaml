@@ -8,10 +8,6 @@ copyright:           "2020 IOHK"
 synopsis:            Library utilities for constructing and signing Cardano transactions.
 category:            Cardano
 
-extra-source-files:
-- README.md
-- ChangeLog.md
-
 description: |
   Please see the README on GitHub at <https://github.com/input-output-hk/cardano-transactions>
 
@@ -27,6 +23,7 @@ flags:
 library:
   source-dirs: src
   ghc-options:
+  - -Wall
   - -Wcompat
   - -fwarn-redundant-constraints
   dependencies:
@@ -44,14 +41,14 @@ library:
   when:
   - condition: flag(release)
     ghc-options:
-      - -Werror
-      - -Wall
+    - -Werror
 
 executables:
   cardano-tx:
     main: Main.hs
     source-dirs: app
     ghc-options:
+    - -Wall
     - -Wcompat
     - -fwarn-redundant-constraints
     - -threaded
@@ -69,7 +66,6 @@ executables:
     - condition: flag(release)
       ghc-options:
       - -Werror
-      - -Wall
       - -static
       - -O2
       cc-options: -static
@@ -80,6 +76,7 @@ tests:
     source-dirs: test
     main: Main.hs
     ghc-options:
+    - -Wall
     - -Wcompat
     - -fwarn-redundant-constraints
     - -threaded
@@ -103,4 +100,3 @@ tests:
     - condition: flag(release)
       ghc-options:
         - -Werror
-        - -Wall
