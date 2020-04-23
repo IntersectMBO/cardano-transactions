@@ -11,7 +11,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest]
+        os: [ubuntu-latest]
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -37,6 +37,12 @@ jobs:
         path: ~/.stack
         key: ${{ matrix.os }}-${{ steps.cache_key.outputs.key }}
 
+    - name: 🏷️ Variables
+      id: variables
+      run: |
+        stack setup
+        echo ::set-output name=pkg_name::$(cat *.cabal | grep "name:" | sed "s/name:\s*\(.*\)/\1/")
+
     - name: 📸 Build Snapshot
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
@@ -56,13 +62,15 @@ jobs:
 
     - name: 🔨 Build & Test
       run: |
-        PKG_NAME=$(cat *.cabal | grep "name:" | sed "s/name:\s*\(.*\)/\1/")
         stack --no-terminal test --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage --flag $PKG_NAME:release
         wget -O Makefile https://raw.githubusercontent.com/input-output-hk/adrestia/master/.haskell/coverage/Makefile
         mkdir -p .coverage && touch .coverage/template.overlay
         DESTDIR=dist/coverage make report && DESTDIR=dist/coverage make badge
-        mkdir -p dist/haddock  && mv $(stack path --local-install-root)/doc/$PKG_NAME-*/* dist/haddock
+        mkdir -p dist/haddock && mv $(stack path --local-install-root)/doc/* dist/haddock
+        sed -i 's@href="[^"]*/doc/\([^"]*.html\)"@href="\1"@' dist/haddock/index.html
         mkdir -p bin && cp $(stack path --local-install-root)/bin/* bin && chmod +x bin/*
+      env:
+        PKG_NAME: ${{ steps.variables.outputs.pkg_name }}
 
     - name: 📤 Upload Artifact
       uses: actions/upload-artifact@v1
@@ -89,6 +97,7 @@ jobs:
     - name: 🏷️ Variables
       id: variables
       run: |
+        stack setup
         echo ::set-output name=tag::${GITHUB_REF/refs\/tags\//}
         echo ::set-output name=pkg_name::$(cat *.cabal | grep "name:" | sed "s/name:\s*\(.*\)/\1/")
 
