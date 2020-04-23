@@ -11,7 +11,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macOS-latest]
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -48,7 +48,13 @@ jobs:
       run: |
         stack --no-terminal test --bench --only-snapshot
 
+    - name: 🔨 Build & Test
+      run: |
+        stack --no-terminal test --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage --flag $PKG_NAME:release
+        mkdir -p bin && cp $(stack path --local-install-root)/bin/* bin && chmod +x bin/*
+
     - name: ✍  Check hlint and stylish
+      if: matrix.os == 'ubuntu-latest'
       run: |
         curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
         curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
@@ -60,25 +66,24 @@ jobs:
             exit 1
         fi
 
-    - name: 🔨 Build & Test
-      run: |
-        stack --no-terminal test --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage --flag $PKG_NAME:release
-        wget -O Makefile https://raw.githubusercontent.com/input-output-hk/adrestia/master/.haskell/coverage/Makefile
-        mkdir -p .coverage && touch .coverage/template.overlay
-        DESTDIR=dist/coverage make report && DESTDIR=dist/coverage make badge
-        mkdir -p dist/haddock && mv $(stack path --local-install-root)/doc/* dist/haddock
-        sed -i 's@href="[^"]*/doc/\([^"]*.html\)"@href="\1"@' dist/haddock/index.html
-        mkdir -p bin && cp $(stack path --local-install-root)/bin/* bin && chmod +x bin/*
-      env:
-        PKG_NAME: ${{ steps.variables.outputs.pkg_name }}
-
-    - name: 📤 Upload Artifact
+    - name: 📎 Upload Artifact
       uses: actions/upload-artifact@v1
       with:
         name: ${{ matrix.os }}-exe
         path: bin
 
-    - name: 📘 Publish Documentation
+    - name: 📘 Prepare Documentation and Coverage Report
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        wget -O Makefile https://raw.githubusercontent.com/input-output-hk/adrestia/master/.haskell/coverage/Makefile
+        mkdir -p .coverage && touch .coverage/template.overlay
+        DESTDIR=dist/coverage make report && DESTDIR=dist/coverage make badge
+        mkdir -p dist/haddock && mv $(stack path --local-install-root)/doc/* dist/haddock
+        sed -i 's@href="[^"]*/doc/\([^"]*.html\)"@href="\1"@' dist/haddock/index.html
+      env:
+        PKG_NAME: ${{ steps.variables.outputs.pkg_name }}
+
+    - name: 📤 Publish Documentation
       if: matrix.os == 'ubuntu-latest' && github.event_name == 'push'
       uses: peaceiris/actions-gh-pages@v3
       with:
@@ -88,7 +93,10 @@ jobs:
 
   release:
     needs: [build]
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest]
+    runs-on: ${{ matrix.os }}
     if: ${{ startsWith(github.ref, 'refs/tags') }}
     steps:
     - name: 📥 Checkout repository
@@ -102,14 +110,24 @@ jobs:
         echo ::set-output name=pkg_name::$(cat *.cabal | grep "name:" | sed "s/name:\s*\(.*\)/\1/")
 
     - name: 🐧 Download Artifact (linux)
+      if: matrix.os == 'ubuntu-latest'
       uses: actions/download-artifact@v1
       with:
         name: ubuntu-latest-exe
+
+    - name: 🍎 Download Artifact (macOS)
+      if: matrix.os == 'macOS-latest'
+      uses: actions/download-artifact@v1
+      with:
+        name: macOS-latest-exe
 
     - name: 📦 Package Artifacts
       run: |
         mv ubuntu-latest-exe bin
         tar czf $PKG_NAME-$TAG-linux64.tar.gz README.md LICENSE NOTICE bin/*
+        rm -rf bin
+        mv macOS-latest-exe bin
+        tar czf $PKG_NAME-$TAG-macOS64.tar.gz README.md LICENSE NOTICE bin/*
       env:
         PKG_NAME: ${{ steps.variables.outputs.pkg_name }}
         TAG: ${{ steps.variables.outputs.tag }}
@@ -124,4 +142,6 @@ jobs:
         ALLOW_EMPTY_CHANGELOG: "false"
         ALLOW_TAG_PREFIX: "true"
       with:
-        args: ${{ steps.variables.outputs.pkg_name }}-${{ steps.variables.outputs.tag }}-linux64.tar.gz
+        args: |
+          ${{ steps.variables.outputs.pkg_name }}-${{ steps.variables.outputs.tag }}-linux64.tar.gz
+          ${{ steps.variables.outputs.pkg_name }}-${{ steps.variables.outputs.tag }}-macOS64.tar.gz
