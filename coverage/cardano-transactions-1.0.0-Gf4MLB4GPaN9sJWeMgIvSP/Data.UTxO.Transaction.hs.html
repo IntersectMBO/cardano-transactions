@@ -1,0 +1,196 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style type="text/css">
+span.lineno { color: white; background: #aaaaaa; border-right: solid white 12px }
+span.nottickedoff { background: yellow}
+span.istickedoff { background: white }
+span.tickonlyfalse { margin: -1px; border: 1px solid #f20913; background: #f20913 }
+span.tickonlytrue  { margin: -1px; border: 1px solid #60de51; background: #60de51 }
+span.funcount { font-size: small; color: orange; z-index: 2; position: absolute; right: 20 }
+span.decl { font-weight: bold }
+span.spaces    { background: white }
+</style>
+</head>
+<body>
+<pre>
+<span class="decl"><span class="nottickedoff">never executed</span> <span class="tickonlytrue">always true</span> <span class="tickonlyfalse">always false</span></span>
+</pre>
+<pre>
+<span class="lineno">    1 </span>{-# LANGUAGE DataKinds #-}
+<span class="lineno">    2 </span>{-# LANGUAGE RankNTypes #-}
+<span class="lineno">    3 </span>{-# LANGUAGE TypeFamilyDependencies #-}
+<span class="lineno">    4 </span>
+<span class="lineno">    5 </span>module Data.UTxO.Transaction
+<span class="lineno">    6 </span>    (
+<span class="lineno">    7 </span>    -- * Overview
+<span class="lineno">    8 </span>    -- $overview
+<span class="lineno">    9 </span>
+<span class="lineno">   10 </span>    -- * Abstraction
+<span class="lineno">   11 </span>      MkPayment (..)
+<span class="lineno">   12 </span>    , ErrMkPayment (..)
+<span class="lineno">   13 </span>
+<span class="lineno">   14 </span>    -- * Note about type-level constraints
+<span class="lineno">   15 </span>    -- $note
+<span class="lineno">   16 </span>    ) where
+<span class="lineno">   17 </span>
+<span class="lineno">   18 </span>import Prelude
+<span class="lineno">   19 </span>
+<span class="lineno">   20 </span>import Data.ByteString
+<span class="lineno">   21 </span>    ( ByteString )
+<span class="lineno">   22 </span>
+<span class="lineno">   23 </span>-- $overview
+<span class="lineno">   24 </span>--
+<span class="lineno">   25 </span>-- This module offers an abstraction over the construction of simple UTxO
+<span class="lineno">   26 </span>-- transactions. Such a transaction is called a /Payment/. Payments are
+<span class="lineno">   27 </span>-- constructed by selecting inputs and outputs, and signing each input
+<span class="lineno">   28 </span>-- independently.
+<span class="lineno">   29 </span>--
+<span class="lineno">   30 </span>-- This can be represented as a state machine, such as:
+<span class="lineno">   31 </span>--
+<span class="lineno">   32 </span>-- @
+<span class="lineno">   33 </span>--                          empty
+<span class="lineno">   34 </span>--                            |
+<span class="lineno">   35 </span>--      *-----------------*   |   *----------------*
+<span class="lineno">   36 </span>--      |                 |   |   |                |
+<span class="lineno">   37 </span>--      |                 v   v   v                |
+<span class="lineno">   38 </span>--      *--- addOutput ---=========--- addInput ---*
+<span class="lineno">   39 </span>--                            |
+<span class="lineno">   40 </span>--                            |
+<span class="lineno">   41 </span>--                          lock  *----------------*
+<span class="lineno">   42 </span>--                            |   |                |
+<span class="lineno">   43 </span>--                            |   v                |
+<span class="lineno">   44 </span>--                        =========--- signWith ---*
+<span class="lineno">   45 </span>--                            |
+<span class="lineno">   46 </span>--                            |
+<span class="lineno">   47 </span>--                        serialize
+<span class="lineno">   48 </span>--                            |
+<span class="lineno">   49 </span>--                            |
+<span class="lineno">   50 </span>--                            v
+<span class="lineno">   51 </span>--                           ...
+<span class="lineno">   52 </span>-- @
+<span class="lineno">   53 </span>--
+<span class="lineno">   54 </span>-- Functions from the 'MkPayment' interfaces are designed to be easy to chain
+<span class="lineno">   55 </span>-- like pipes. To give a concrete example, let's see how to construct a
+<span class="lineno">   56 </span>-- transaction with /one input/ and /two outputs/:
+<span class="lineno">   57 </span>--
+<span class="lineno">   58 </span>-- @
+<span class="lineno">   59 </span>-- import Data.Function
+<span class="lineno">   60 </span>--     ( (&amp;) )
+<span class="lineno">   61 </span>-- import qualified Data.UTxO.Transaction as Tx
+<span class="lineno">   62 </span>--
+<span class="lineno">   63 </span>-- bytes = Tx.empty
+<span class="lineno">   64 </span>--       &amp; Tx.addInput  input0
+<span class="lineno">   65 </span>--       &amp; Tx.addOutput output0
+<span class="lineno">   66 </span>--       &amp; Tx.addOutput output1
+<span class="lineno">   67 </span>--       &amp; Tx.lock
+<span class="lineno">   68 </span>--       &amp; Tx.signWith  key0
+<span class="lineno">   69 </span>--       &amp; Tx.serialize
+<span class="lineno">   70 </span>-- @
+<span class="lineno">   71 </span>--
+<span class="lineno">   72 </span>-- The reason why the 'lock' step is required is because, in order to create
+<span class="lineno">   73 </span>-- witnesses, one must produce signatures of the whole transaction body (inputs
+<span class="lineno">   74 </span>-- + outputs). Hence, signatures can only be added once all inputs and all
+<span class="lineno">   75 </span>-- outputs have already been addded.
+<span class="lineno">   76 </span>--
+<span class="lineno">   77 </span>-- This is correct-by-construction thanks to the 'lock' step and the distinction
+<span class="lineno">   78 </span>-- between 'CoinSel' and 'Tx'.
+<span class="lineno">   79 </span>
+<span class="lineno">   80 </span>-- | Abstract interface for constructing a /Payment/.
+<span class="lineno">   81 </span>class MkPayment dom where
+<span class="lineno">   82 </span>    -- | Some initial extra data needed to construct and or serialize the
+<span class="lineno">   83 </span>    -- transaction. This is a free-type which is implementation-specific.
+<span class="lineno">   84 </span>    --
+<span class="lineno">   85 </span>    -- For example, Byron transactions requires the underlying protocol magic in
+<span class="lineno">   86 </span>    -- order to produce witnesses. This is an appropriate place for.
+<span class="lineno">   87 </span>    type Init    dom :: *
+<span class="lineno">   88 </span>
+<span class="lineno">   89 </span>    -- | Type representation of transaction 'Input'
+<span class="lineno">   90 </span>    type Input   dom = inp | inp -&gt; dom
+<span class="lineno">   91 </span>
+<span class="lineno">   92 </span>    -- | Type representation of transaction 'Output'
+<span class="lineno">   93 </span>    type Output  dom = out | out -&gt; dom
+<span class="lineno">   94 </span>
+<span class="lineno">   95 </span>    -- | Type representation of transaction 'SignKey'
+<span class="lineno">   96 </span>    type SignKey dom = key | key -&gt; dom
+<span class="lineno">   97 </span>
+<span class="lineno">   98 </span>    -- | An intermediate type for representing a transaction under construction.
+<span class="lineno">   99 </span>    -- 'Input' and 'Output' can still be added to a 'CoinSel' and must be added
+<span class="lineno">  100 </span>    -- before trying to sign any of the inputs.
+<span class="lineno">  101 </span>    type CoinSel dom = sel | sel -&gt; dom
+<span class="lineno">  102 </span>
+<span class="lineno">  103 </span>    -- | A transaction is a locked 'CoinSel' to which it is no longer possible
+<span class="lineno">  104 </span>    -- to add new 'Input' and or 'Output'. Only 'Tx' can be serialized.
+<span class="lineno">  105 </span>    type Tx      dom = tx  | tx  -&gt; dom
+<span class="lineno">  106 </span>
+<span class="lineno">  107 </span>    -- * Transaction construction
+<span class="lineno">  108 </span>    empty     :: Init dom -&gt; CoinSel dom
+<span class="lineno">  109 </span>    addInput  :: Input  dom -&gt; CoinSel dom -&gt; CoinSel dom
+<span class="lineno">  110 </span>    addOutput :: Output dom -&gt; CoinSel dom -&gt; CoinSel dom
+<span class="lineno">  111 </span>
+<span class="lineno">  112 </span>    -- * Transaction signature
+<span class="lineno">  113 </span>    lock      :: CoinSel dom -&gt; Tx dom
+<span class="lineno">  114 </span>    signWith  :: SignKey dom -&gt; Tx dom -&gt; Tx dom
+<span class="lineno">  115 </span>
+<span class="lineno">  116 </span>    -- * Transaction serialization
+<span class="lineno">  117 </span>    serialize :: Tx dom -&gt; Either ErrMkPayment ByteString
+<span class="lineno">  118 </span>
+<span class="lineno">  119 </span>-- | Possible errors occuring when constructing a /Payment/. This can in
+<span class="lineno">  120 </span>-- practice be safely ignored if the transaction is known to be well-formed.
+<span class="lineno">  121 </span>data ErrMkPayment
+<span class="lineno">  122 </span>    = MissingInput
+<span class="lineno">  123 </span>        -- ^ Payments must have at least one input.
+<span class="lineno">  124 </span>    | MissingOutput
+<span class="lineno">  125 </span>        -- ^ Payments must have at least one output
+<span class="lineno">  126 </span>    | MissingSignature
+<span class="lineno">  127 </span>        -- ^ Payments must have a signature for each input.
+<span class="lineno">  128 </span>    deriving (<span class="decl"><span class="istickedoff">Show</span></span>, <span class="decl"><span class="istickedoff"><span class="decl"><span class="istickedoff"><span class="decl"><span class="istickedoff">Read</span></span></span></span></span></span>, <span class="decl"><span class="istickedoff">Eq</span></span>)
+<span class="lineno">  129 </span>
+<span class="lineno">  130 </span>-- $note
+<span class="lineno">  131 </span>--
+<span class="lineno">  132 </span>-- It is relatively easy to tweak the interface below to get it fully type-safe
+<span class="lineno">  133 </span>-- by using an inductive type, such as:
+<span class="lineno">  134 </span>--
+<span class="lineno">  135 </span>-- @
+<span class="lineno">  136 </span>-- data N = Zero | Some N
+<span class="lineno">  137 </span>--
+<span class="lineno">  138 </span>-- class MkPayment dom where
+<span class="lineno">  139 </span>--     type Init    dom :: *
+<span class="lineno">  140 </span>--
+<span class="lineno">  141 </span>--     type Input   dom = inp | inp -&gt; dom
+<span class="lineno">  142 </span>--     type Output  dom = out | out -&gt; dom
+<span class="lineno">  143 </span>--     type SignKey dom = key | key -&gt; dom
+<span class="lineno">  144 </span>--
+<span class="lineno">  145 </span>--     type CoinSel dom = (sel :: N -&gt; N -&gt; *) | sel -&gt; dom
+<span class="lineno">  146 </span>--     type Tx      dom = (tx  :: N -&gt; *)      | tx  -&gt; dom
+<span class="lineno">  147 </span>--
+<span class="lineno">  148 </span>--     empty     :: Init dom -&gt; CoinSel dom Zero Zero
+<span class="lineno">  149 </span>--
+<span class="lineno">  150 </span>--     addInput  :: Input  dom -&gt; CoinSel dom n m -&gt; CoinSel dom (Some n) m
+<span class="lineno">  151 </span>--     addOutput :: Output dom -&gt; CoinSel dom n m -&gt; CoinSel dom n (Some m)
+<span class="lineno">  152 </span>--
+<span class="lineno">  153 </span>--     lock      :: CoinSel dom (Some n) (Some m) -&gt; Tx dom (Some n)
+<span class="lineno">  154 </span>--
+<span class="lineno">  155 </span>--     signWith :: SignKey dom -&gt; Tx dom (Some n) -&gt; Tx dom n
+<span class="lineno">  156 </span>--
+<span class="lineno">  157 </span>--     serialize :: Tx dom Zero -&gt; ByteString
+<span class="lineno">  158 </span>-- @
+<span class="lineno">  159 </span>--
+<span class="lineno">  160 </span>-- Such approach is great for ensuring that the transaction can't be ill-formed
+<span class="lineno">  161 </span>-- and works well when manually constructing the transaction as shown above.
+<span class="lineno">  162 </span>--
+<span class="lineno">  163 </span>-- It gets however quite complex when one wants to start folding or mapping on a
+<span class="lineno">  164 </span>-- list of inputs or outputs where their numbers isn't known at compile-time!
+<span class="lineno">  165 </span>-- Indeed, each call to 'addInput' does actually return a new type!
+<span class="lineno">  166 </span>--
+<span class="lineno">  167 </span>-- Let's say we want to write the following function:
+<span class="lineno">  168 </span>--
+<span class="lineno">  169 </span>-- @
+<span class="lineno">  170 </span>-- addMany :: [Input dom] -&gt; CoinSel dom n m -&gt; CoinSel dom ? m
+<span class="lineno">  171 </span>-- @
+<span class="lineno">  172 </span>--
+<span class="lineno">  173 </span>-- What should be the type of `?`. This can't possibly known at compile-time.
+
+</pre>
+</body>
+</html>
