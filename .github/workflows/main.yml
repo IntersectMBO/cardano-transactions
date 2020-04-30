@@ -46,8 +46,13 @@ jobs:
 
     - name: 🔨 Build & Test
       run: |
-        stack --no-terminal test --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage --flag $PKG_NAME:release
+        stack --no-terminal test --bench --haddock --no-haddock-deps --no-run-tests --no-run-benchmarks --flag $PKG_NAME:release
         mkdir -p bin && cp $(stack path --local-install-root)/bin/* bin && chmod +x bin/*
+        mkdir -p dist/haddock && mv $(stack path --local-install-root)/doc/* dist/haddock
+        sed -i 's@href="[^"]*/doc/\([^"]*.html\)"@href="\1"@g' dist/haddock/index.html
+        wget -O Makefile https://raw.githubusercontent.com/input-output-hk/adrestia/master/.haskell/coverage/Makefile
+        mkdir -p .coverage && touch .coverage/template.overlay
+        DESTDIR=dist/coverage make report && DESTDIR=dist/coverage make badge
       env:
         PKG_NAME: ${{ steps.variables.outputs.pkg_name }}
 
@@ -56,16 +61,6 @@ jobs:
       with:
         name: ${{ matrix.os }}-exe
         path: bin
-
-    - name: 📘 Prepare Documentation and Coverage Report
-      run: |
-        wget -O Makefile https://raw.githubusercontent.com/input-output-hk/adrestia/master/.haskell/coverage/Makefile
-        mkdir -p .coverage && touch .coverage/template.overlay
-        DESTDIR=dist/coverage make report && DESTDIR=dist/coverage make badge
-        mkdir -p dist/haddock && mv $(stack path --local-install-root)/doc/* dist/haddock
-        sed -i 's@href="[^"]*/doc/\([^"]*.html\)"@href="\1"@' dist/haddock/index.html
-      env:
-        PKG_NAME: ${{ steps.variables.outputs.pkg_name }}
 
     - name: 📤 Publish Documentation
       if: github.event_name == 'push'
