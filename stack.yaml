@@ -9,3 +9,9 @@ packages:
 
 extra-deps:
   - hedgehog-quickcheck-0.1.1
+
+flags:
+  # Bundle VRF crypto in libsodium and do not rely on an external fork to have it.
+  # This still requires the host system to have the 'standard' libsodium installed.
+  cardano-crypto-praos:
+    external-libsodium-vrf: false

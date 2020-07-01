@@ -18,7 +18,7 @@ jobs:
     - name: 💽 Install OS Packages
       uses: mstksg/get-package@v1
       with:
-        apt-get: libgmp-dev
+        apt-get: libgmp-dev libsodium-dev
 
     - name: 📥 Checkout repository
       uses: actions/checkout@v1
