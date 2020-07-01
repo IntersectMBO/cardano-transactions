@@ -39,7 +39,7 @@ import Cardano.Chain.Common
 import Cardano.Chain.UTxO
     ( TxIn (..), TxInWitness (..), TxOut (..), TxSigData (..), mkTxAux )
 import Cardano.Crypto.Hashing
-    ( AbstractHash (..), hash )
+    ( abstractHashFromDigest, hash )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId (..) )
 import Cardano.Crypto.Signing
@@ -131,7 +131,7 @@ mkInput
     -> Maybe (Input Byron)
 mkInput ix bytes =
     case digestFromByteString @Blake2b_256 bytes of
-        Just txId -> Just $ TxInUtxo (AbstractHash txId) ix
+        Just txId -> Just $ TxInUtxo (abstractHashFromDigest txId) ix
         Nothing -> Nothing
 
 -- | Construct a payment 'Output' for /Byron/ from primitive types.

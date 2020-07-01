@@ -1,4 +1,4 @@
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/master/snapshots/cardano-1.9.3.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/633f6141c3e7211dbb0c6ae6ad50d4976313e190/snapshots/cardano-1.14.2.yaml
 
 # Generate files required by Weeder.
 # See https://github.com/ndmitchell/weeder/issues/53
