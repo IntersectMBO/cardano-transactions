@@ -6,6 +6,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_HADDOCK prune #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-} -- needed for {#- HLINT ... #-}
 
 module Data.UTxO.Transaction.Cardano.Byron
     (
@@ -39,7 +40,7 @@ import Cardano.Chain.Common
 import Cardano.Chain.UTxO
     ( TxIn (..), TxInWitness (..), TxOut (..), TxSigData (..), mkTxAux )
 import Cardano.Crypto.Hashing
-    ( AbstractHash (..), hash )
+    ( abstractHashFromDigest, serializeCborHash )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId (..) )
 import Cardano.Crypto.Signing
@@ -131,7 +132,7 @@ mkInput
     -> Maybe (Input Byron)
 mkInput ix bytes =
     case digestFromByteString @Blake2b_256 bytes of
-        Just txId -> Just $ TxInUtxo (AbstractHash txId) ix
+        Just txId -> Just $ TxInUtxo (abstractHashFromDigest txId) ix
         Nothing -> Nothing
 
 -- | Construct a payment 'Output' for /Byron/ from primitive types.
@@ -247,7 +248,7 @@ instance MkPayment Byron where
     lock (pm, inps, outs) =
         Right (pm, neInps, neOuts, sigData, mempty)
       where
-        sigData = TxSigData $ hash $ CC.UnsafeTx neInps neOuts (mkAttributes ())
+        sigData = TxSigData $ serializeCborHash $ CC.UnsafeTx neInps neOuts (mkAttributes ())
         neInps  = NE.fromList $ reverse inps
         neOuts  = NE.fromList $ reverse outs
 
@@ -322,6 +323,7 @@ encodeTx (Right (pm, inps, outs, sigData, wits)) = mconcat
     , CBOR.encodeBreak
     ]
 
+{-# HLINT ignore decodeTx "Redundant fmap" #-}
 -- __Internal__: Decode a 'Tx Byron' from CBOR.
 decodeTx :: CBOR.Decoder s (Tx Byron)
 decodeTx = do
