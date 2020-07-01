@@ -39,7 +39,7 @@ import Cardano.Chain.Common
 import Cardano.Chain.UTxO
     ( TxIn (..), TxInWitness (..), TxOut (..), TxSigData (..), mkTxAux )
 import Cardano.Crypto.Hashing
-    ( abstractHashFromDigest, hash )
+    ( abstractHashFromDigest, serializeCborHash )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId (..) )
 import Cardano.Crypto.Signing
@@ -247,7 +247,7 @@ instance MkPayment Byron where
     lock (pm, inps, outs) =
         Right (pm, neInps, neOuts, sigData, mempty)
       where
-        sigData = TxSigData $ hash $ CC.UnsafeTx neInps neOuts (mkAttributes ())
+        sigData = TxSigData $ serializeCborHash $ CC.UnsafeTx neInps neOuts (mkAttributes ())
         neInps  = NE.fromList $ reverse inps
         neOuts  = NE.fromList $ reverse outs
 
