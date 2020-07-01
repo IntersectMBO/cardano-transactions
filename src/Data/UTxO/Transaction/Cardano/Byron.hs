@@ -6,6 +6,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_HADDOCK prune #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-} -- needed for {#- HLINT ... #-}
 
 module Data.UTxO.Transaction.Cardano.Byron
     (
@@ -322,6 +323,7 @@ encodeTx (Right (pm, inps, outs, sigData, wits)) = mconcat
     , CBOR.encodeBreak
     ]
 
+{-# HLINT ignore decodeTx "Redundant fmap" #-}
 -- __Internal__: Decode a 'Tx Byron' from CBOR.
 decodeTx :: CBOR.Decoder s (Tx Byron)
 decodeTx = do

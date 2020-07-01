@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -328,9 +329,8 @@ instance {-# OVERLAPS #-}
     arbitrary = do
         pm   <- arbitrary
         wits <- listOf (hedgehog $ genTxInWitness pm)
-        (,,,,)
-            <$> pure pm
-            <*> fmap (NE.fromList . getNonEmpty) arbitrary
+        (pm,,,,)
+            <$> fmap (NE.fromList . getNonEmpty) arbitrary
             <*> fmap (NE.fromList . getNonEmpty) arbitrary
             <*> arbitrary
             <*> pure wits
