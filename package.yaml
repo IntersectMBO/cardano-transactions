@@ -57,7 +57,10 @@ executables:
     dependencies:
     - ansi-terminal
     - bytestring
+    - cardano-binary
+    - cardano-ledger
     - cardano-transactions
+    - cardano-crypto-wrapper
     - cborg
     - memory
     - optparse-applicative

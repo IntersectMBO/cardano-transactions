@@ -3,11 +3,16 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Main where
 
 import Prelude
 
+import Cardano.Binary
+    ( FromCBOR (..) )
+import Cardano.Crypto.Hashing
+    ( abstractHashToBytes, serializeCborHash )
 import Control.Applicative
     ( (<|>) )
 import Control.Exception
@@ -81,10 +86,12 @@ import System.Exit
 import System.IO
     ( Handle, hIsTerminalDevice, stderr, stdin, stdout )
 
+import qualified Cardano.Chain.UTxO as CC
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
@@ -133,6 +140,16 @@ main = setup >> parseCmd >>= \case
         case Tx.serialize state of
             Left e -> failWith (show e)
             Right bytes -> TIO.putStr $ T.decodeUtf8 $ convertToBase base bytes
+
+    CmdId -> do
+        bytes <- BS.hGetContents stdin
+        case CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes) of
+            Left{}  -> failWith "Not a valid Byron transaction."
+            Right (_, tx) -> do
+                let txid = BA.convert @_ @ByteString $ abstractHashToBytes $
+                        serializeCborHash (CC.taTx @() tx)
+                TIO.putStr $ T.decodeUtf8 $ convertToBase Base16 txid
+
   where
     setup :: IO ()
     setup = do
@@ -149,6 +166,7 @@ data Cmd
     | CmdLock
     | CmdSignWith SignWith
     | CmdSerialize Serialize
+    | CmdId
     deriving (Show)
 
 cmd :: ParserInfo Cmd
@@ -201,6 +219,7 @@ cmd = info (helper <*> cmds) $ progDesc "cardano-tx"
         , cmdLock
         , cmdSignWith
         , cmdSerialize
+        , cmdId
         ]
 
 --                       _
@@ -372,6 +391,19 @@ serializeArg = base16Flag <|> base64Flag
   where
     base16Flag = flag' (Serialize Base16) (long "base16")
     base64Flag = flag (Serialize Base64) (Serialize Base64) (long "base64")
+
+--  ___    _
+-- |_ _|__| |
+--  | |/ _` |
+--  | | (_| |
+-- |___\__,_|
+--
+
+cmdId :: Mod CommandFields Cmd
+cmdId = command "id" $
+    info (helper <*> pure CmdId) $ mconcat
+        [ progDesc "Get the id of a transaction."
+        ]
 
 --  _   _      _
 -- | | | |    | |

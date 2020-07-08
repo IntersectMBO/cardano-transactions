@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bb07e37f882f89fbc02bca7bc78436aaa4ecca901ec7cd41b52577641ebd852d
+-- hash: 5ad7de2d675ae5f4c9437760e5531880448ce11ee99a8d179abb2186bfa5dbe9
 
 name:           cardano-transactions
 version:        1.0.0
@@ -66,6 +66,9 @@ executable cardano-tx
       ansi-terminal
     , base >=4.7 && <5
     , bytestring
+    , cardano-binary
+    , cardano-crypto-wrapper
+    , cardano-ledger
     , cardano-transactions
     , cborg
     , memory
