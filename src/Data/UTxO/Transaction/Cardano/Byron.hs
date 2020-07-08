@@ -266,6 +266,8 @@ instance MkPayment Byron where
     serialize :: Tx Byron -> Either ErrMkPayment ByteString
     serialize (Left e) = Left e
     serialize (Right (_pm, inps, outs, _sigData, wits))
+        | null wits = Right $ CBOR.toStrictByteString $ toCBOR
+            (CC.UnsafeTx inps outs (mkAttributes ()))
         | NE.length inps /= length wits = Left MissingSignature
         | otherwise = Right $ CBOR.toStrictByteString $ toCBOR $ mkTxAux
             (CC.UnsafeTx inps outs (mkAttributes ()))
