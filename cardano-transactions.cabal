@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.2.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bb07e37f882f89fbc02bca7bc78436aaa4ecca901ec7cd41b52577641ebd852d
+-- hash: 6fa5d8537d9df3cbcb0caac4be815b9526e9c319137d49264e67a9a06ddaf2fa
 
 name:           cardano-transactions
 version:        1.0.0
@@ -33,6 +33,7 @@ library
   exposed-modules:
       Data.UTxO.Transaction
       Data.UTxO.Transaction.Cardano.Byron
+      Data.UTxO.Transaction.Cardano.Shelley
   other-modules:
       Paths_cardano_transactions
   hs-source-dirs:
@@ -50,6 +51,7 @@ library
     , cryptonite
     , extra
     , memory
+    , shelley-spec-ledger
     , text
   if flag(release)
     ghc-options: -Werror
