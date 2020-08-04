@@ -37,6 +37,7 @@ library:
   - cryptonite
   - extra
   - memory
+  - shelley-spec-ledger
   - text
   when:
   - condition: flag(release)

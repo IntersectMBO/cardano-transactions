@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6fa5d8537d9df3cbcb0caac4be815b9526e9c319137d49264e67a9a06ddaf2fa
+-- hash: 47bb01752313aa8294f6509cb2b9831f80d7074df9a8ee7618ed51840eded4e2
 
 name:           cardano-transactions
 version:        1.0.0
