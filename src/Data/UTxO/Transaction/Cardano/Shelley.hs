@@ -17,17 +17,14 @@ module Data.UTxO.Transaction.Cardano.Shelley
     , Shelley
     ) where
 
-import Cardano.Chain.UTxO
-    ( TxIn (..), TxInWitness (..), TxOut (..), TxSigData (..) )
-import Cardano.Crypto.Signing
-    ( SigningKey (..) )
-import Data.List.NonEmpty
-    ( NonEmpty )
+import Cardano.Api.Typed
+    ( TxIn (..), TxOut (..) )
 import Data.UTxO.Transaction
-    ( ErrMkPayment (..), MkPayment (..) )
+    ( MkPayment (..) )
 import Shelley.Spec.Ledger.BaseTypes
     ( Network (..) )
 
+import qualified Cardano.Api.Typed as Cardano
 
 -- | Construct a payment 'Init' for /Shelley/ from primitive types.
 --
@@ -69,15 +66,13 @@ instance MkPayment Shelley where
     type Init Shelley = Network
 
     type Input   Shelley = TxIn
-    type Output  Shelley = TxOut
-    type SignKey Shelley = SigningKey
+    type Output  Shelley = TxOut Cardano.Shelley
+    type SignKey Shelley = ()
 
     type CoinSel Shelley =
-        (Network, [TxIn], [TxOut])
+        (Network, [TxIn], [TxOut Cardano.Shelley])
 
-    type Tx Shelley = Either
-        ErrMkPayment
-        (Network, NonEmpty TxIn, NonEmpty TxOut, TxSigData, [TxInWitness])
+    type Tx Shelley = ()
 
     empty = undefined
     addInput = undefined

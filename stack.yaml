@@ -8,15 +8,25 @@ packages:
 - .
 
 extra-deps:
-- hedgehog-quickcheck-0.1.1
+- base64-0.4.1
 - base58-bytestring-0.1.0
+- bech32-1.1.0
 - canonical-json-0.6.0.0
-- quiet-0.2
-- streaming-binary-0.3.0.1
-- moo-1.2
-- gray-code-0.3.1
-- Unique-0.4.7.7
+- dns-3.0.4
 - generic-monoid-0.1.0.1
+- gray-code-0.3.1
+- hedgehog-quickcheck-0.1.1
+- libsystemd-journal-1.4.4
+- moo-1.2
+- network-3.1.1.1
+- quiet-0.2
+- sop-core-0.5.0.1
+- statistics-linreg-0.3
+- streaming-binary-0.3.0.1
+- time-units-1.0.0
+- transformers-except-0.1.1
+- Unique-0.4.7.7
+
 
 - git: https://github.com/input-output-hk/cardano-prelude
   commit: 316c854d1d3089f480708ad5cd5ecf8a74423ddd
@@ -55,9 +65,39 @@ extra-deps:
   commit: efa4b5ecd7f0a13124616b12679cd42517cd905a
   subdirs:
   - contra-tracer
+  - iohk-monitoring
+  - tracer-transformers
+  - plugins/backend-aggregation
+  - plugins/backend-ekg
+  - plugins/backend-monitoring
+  - plugins/scribe-systemd
+  - plugins/backend-trace-forwarder
 
 - git: https://github.com/input-output-hk/goblins
   commit: 26d35ad52fe9ade3391532dbfeb2f416f07650bc
+
+- git: https://github.com/input-output-hk/cardano-node
+  commit: ba0f96b1a9fc9232ed211e57835fd5018093069d
+  subdirs:
+  - cardano-api
+  - cardano-config
+
+- git: https://github.com/input-output-hk/ouroboros-network
+  commit: ec74d1c463b6d18bdca2b714abe730c1d237cc32
+  subdirs:
+  - io-sim
+  - io-sim-classes
+  - network-mux
+  - Win32-network
+  - ouroboros-consensus
+  - ouroboros-consensus-byron
+  - ouroboros-consensus-cardano
+  - ouroboros-consensus-shelley
+  - ouroboros-consensus/ouroboros-consensus-mock
+  - ouroboros-network
+  - ouroboros-network-framework
+  - typed-protocols
+  - typed-protocols-examples
 
 flags:
   # Bundle VRF crypto in libsodium and do not rely on an external fork to have it.

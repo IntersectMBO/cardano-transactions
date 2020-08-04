@@ -29,6 +29,7 @@ library:
   dependencies:
   - base58-bytestring
   - bytestring
+  - cardano-api
   - cardano-binary
   - cardano-crypto
   - cardano-crypto-wrapper
