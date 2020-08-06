@@ -30,13 +30,13 @@ import Data.UTxO.Transaction.Cardano.Byron
     , decodeTx
     , encodeCoinSel
     , encodeTx
-    , fromBase16
-    , fromBase58
     , mkInit
     , mkInput
     , mkOutput
     , mkSignKey
     )
+import Data.UTxO.Transaction.Cardano.Helpers
+    ( fromBase16, fromBase58 )
 import Data.Word
     ( Word32 )
 import Numeric.Natural

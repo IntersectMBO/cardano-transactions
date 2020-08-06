@@ -28,6 +28,7 @@ library:
   - -fwarn-redundant-constraints
   dependencies:
   - base58-bytestring
+  - bech32
   - bytestring
   - cardano-api
   - cardano-binary

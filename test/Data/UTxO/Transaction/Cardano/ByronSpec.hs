@@ -36,9 +36,6 @@ import Data.UTxO.Transaction.Cardano.Byron
     , decodeTx
     , encodeCoinSel
     , encodeTx
-    , fromBase16
-    , fromBase58
-    , fromBase64
     , mainnetMagic
     , mkInit
     , mkInput
@@ -46,6 +43,8 @@ import Data.UTxO.Transaction.Cardano.Byron
     , mkSignKey
     , testnetMagic
     )
+import Data.UTxO.Transaction.Cardano.Helpers
+    ( fromBase16, fromBase58, fromBase64 )
 import Data.Word
     ( Word32, Word64 )
 import Numeric.Natural
