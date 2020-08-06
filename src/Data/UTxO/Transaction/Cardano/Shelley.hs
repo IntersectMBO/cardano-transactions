@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_HADDOCK prune #-}
@@ -88,9 +87,15 @@ instance MkPayment Shelley where
 
     type Tx Shelley = ()
 
-    empty = undefined
-    addInput = undefined
-    addOutput = undefined
+    empty :: Network -> CoinSel Shelley
+    empty net = (net, mempty, mempty)
+
+    addInput :: TxIn -> CoinSel Shelley -> CoinSel Shelley
+    addInput inp (pm, inps, outs) = (pm, inp : inps, outs)
+
+    addOutput :: TxOut Cardano.Shelley -> CoinSel Shelley -> CoinSel Shelley
+    addOutput out (pm, inps, outs) = (pm, inps, out : outs)
+
     lock = undefined
     signWith = undefined
     serialize = undefined
