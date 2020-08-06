@@ -16,6 +16,7 @@ module Data.UTxO.Transaction.Cardano.Shelley
 
    -- * Constructing Primitives
     , mkInput
+    , mkOutput
 
     -- Internal
     , Shelley
@@ -33,6 +34,8 @@ import Data.UTxO.Transaction
     ( MkPayment (..) )
 import Data.Word
     ( Word32 )
+import Numeric.Natural
+    ( Natural )
 import Shelley.Spec.Ledger.BaseTypes
     ( Network (..) )
 
@@ -121,3 +124,23 @@ mkInput ix bytes =
             (Cardano.TxIx (fromIntegral ix))
     else
         Nothing
+
+-- | Construct a payment 'Output' for /Shelley/ from primitive types.
+--
+-- __example__:
+--
+-- >>> mkOutput 42 =<< fromBase58 "Ae2tdPwU...DnXy319f"
+-- >>> mkOutput 42 =<< fromBech32 "addr1sjc...6s3xvu5g"
+-- >>> mkOutput 42 =<< fromBase16 "42bf330c...ba5b947e"
+-- Just (Output ...)
+--
+-- @since 2.0.0
+mkOutput
+    :: Natural
+        -- ^ Output value, in Lovelace (1 Ada = 1e6 Lovelace).
+    -> ByteString
+        -- ^ Output Address. See also: 'fromBase58', 'fromBase16', 'fromBech32'.
+    -> Maybe (Output Shelley)
+mkOutput coin bytes =
+    Cardano.deserialiseFromRawBytes Cardano.AsShelleyAddress bytes >>=
+    (\addr -> pure $ Cardano.TxOut addr (Cardano.Lovelace $ fromIntegral coin) )

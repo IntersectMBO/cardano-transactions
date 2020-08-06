@@ -1,8 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_HADDOCK prune #-}
