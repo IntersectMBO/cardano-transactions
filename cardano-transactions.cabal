@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: df09fbf9727e27a4624e33d59417197d0674b01eba5ab61aab9542b8fb767ec5
+-- hash: a94732c2250228fdf7598e0bbc9b6e58127a3e8102be3ceb8c2974beb71fe2b9
 
 name:           cardano-transactions
 version:        1.0.0
@@ -46,6 +46,7 @@ library
     , cardano-api
     , cardano-binary
     , cardano-crypto
+    , cardano-crypto-class
     , cardano-crypto-wrapper
     , cardano-ledger
     , cborg

@@ -32,6 +32,7 @@ library:
   - cardano-api
   - cardano-binary
   - cardano-crypto
+  - cardano-crypto-class
   - cardano-crypto-wrapper
   - cardano-ledger
   - cborg

@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_HADDOCK prune #-}
@@ -12,6 +13,10 @@ module Data.UTxO.Transaction.Cardano.Shelley
       mkInit
     , mainnetMagic
     , testnetMagic
+    , Network (..)
+
+   -- * Constructing Primitives
+    , mkInput
 
     -- Internal
     , Shelley
@@ -19,12 +24,21 @@ module Data.UTxO.Transaction.Cardano.Shelley
 
 import Cardano.Api.Typed
     ( TxIn (..), TxOut (..) )
+import Cardano.Crypto.Hash.Class
+    ( Hash (UnsafeHash) )
+import Data.ByteString
+    ( ByteString )
+import Data.ByteString.Short
+    ( toShort )
 import Data.UTxO.Transaction
     ( MkPayment (..) )
+import Data.Word
+    ( Word32 )
 import Shelley.Spec.Ledger.BaseTypes
     ( Network (..) )
 
 import qualified Cardano.Api.Typed as Cardano
+import qualified Data.ByteString as BS
 
 -- | Construct a payment 'Init' for /Shelley/ from primitive types.
 --
@@ -80,3 +94,25 @@ instance MkPayment Shelley where
     lock = undefined
     signWith = undefined
     serialize = undefined
+
+-- | Construct a payment 'Input' for /Shelley/ from primitive types.
+--
+-- __example__:
+--
+-- >>> mkInput 14 =<< fromBase16 "3b402651...aad1c0b7"
+-- Just (Input ...)
+--
+-- @since 2.0.0
+mkInput
+    :: Word32
+        -- ^ Input index.
+    -> ByteString
+        -- ^ Input transaction id. See also: 'fromBase16'.
+    -> Maybe (Input Shelley)
+mkInput ix bytes =
+    if BS.length bytes == 32 then
+        Just $ Cardano.TxIn
+            (Cardano.TxId $ UnsafeHash $ toShort bytes)
+            (Cardano.TxIx (fromIntegral ix))
+    else
+        Nothing
