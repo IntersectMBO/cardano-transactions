@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9801b5bf5e26ceecb60259c2b9edb11188896f6075075f74cc762e7d4213d454
+-- hash: 8bebbda4230df54afce0caf35edbc45e3d8c746981845efe700ca5aedc585e9d
 
 name:           cardano-transactions
 version:        1.0.0
@@ -51,6 +51,7 @@ library
     , cardano-crypto-class
     , cardano-crypto-wrapper
     , cardano-ledger
+    , cardano-slotting
     , cborg
     , cryptonite
     , extra

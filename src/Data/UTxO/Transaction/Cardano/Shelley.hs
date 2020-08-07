@@ -10,9 +10,7 @@ module Data.UTxO.Transaction.Cardano.Shelley
     (
     -- * Initialization
       mkInit
-    , mainnetMagic
-    , testnetMagic
-    , Network (..)
+    , NetworkId (..)
 
    -- * Constructing Primitives
     , mkInput
@@ -23,53 +21,45 @@ module Data.UTxO.Transaction.Cardano.Shelley
     ) where
 
 import Cardano.Api.Typed
+    ( NetworkId, TxExtraContent (..) )
+import Cardano.Api.Typed
     ( TxIn (..), TxOut (..) )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash) )
+import Cardano.Slotting.Slot
+    ( SlotNo (..) )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Short
     ( toShort )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.UTxO.Transaction
-    ( MkPayment (..) )
+    ( ErrMkPayment (..), MkPayment (..) )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
 import Numeric.Natural
     ( Natural )
-import Shelley.Spec.Ledger.BaseTypes
-    ( Network (..) )
 
 import qualified Cardano.Api.Typed as Cardano
 import qualified Data.ByteString as BS
+import qualified Data.List.NonEmpty as NE
 
 -- | Construct a payment 'Init' for /Shelley/ from primitive types.
 --
 -- __examples__:
 --
--- >>> mkInit Mainnet == mainnetMagic
--- True
---
--- >>> mkInit Testnet == testnetMagic
--- True
+-- >>> mkInit Mainnet 430000
+-- >>> mkInit (Testnet (NetworkMagic 1234)) 430000
 --
 -- @since 2.0.0
 mkInit
-    :: Network
-        -- ^ A network tag
+    :: NetworkId
+        -- ^ A network tag, Mainnet or Testnet with NetworkMagic specified
+    -> Word64
+        -- ^ A ttl expressed in slot number counted from the beginning of blockchain
     -> Init Shelley
-mkInit net = net
-
--- | Pre-defined 'Init' magic for /Shelley/ MainNet.
---
--- @since 2.0.0
-mainnetMagic :: Init Shelley
-mainnetMagic = mkInit Mainnet
-
--- | Pre-defined 'Init' magic for /Shelley/ TestNet.
---
--- @since 2.0.0
-testnetMagic :: Init Shelley
-testnetMagic = mkInit Testnet
+mkInit net ttl = (net, SlotNo ttl)
 
 --
 -- MkPayment instance
@@ -79,27 +69,48 @@ testnetMagic = mkInit Testnet
 data Shelley
 
 instance MkPayment Shelley where
-    type Init Shelley = Network
+    type Init Shelley = (NetworkId, SlotNo)
 
     type Input   Shelley = TxIn
     type Output  Shelley = TxOut Cardano.Shelley
     type SignKey Shelley = ()
 
     type CoinSel Shelley =
-        (Network, [TxIn], [TxOut Cardano.Shelley])
+        (NetworkId, SlotNo, [TxIn], [TxOut Cardano.Shelley])
 
-    type Tx Shelley = ()
+    type Tx Shelley = Either
+        ErrMkPayment
+        (NetworkId, NonEmpty TxIn, NonEmpty (TxOut Cardano.Shelley), Cardano.TxBody Cardano.Shelley)
 
-    empty :: Network -> CoinSel Shelley
-    empty net = (net, mempty, mempty)
+    empty :: Init Shelley -> CoinSel Shelley
+    empty (net, ttl) = (net, ttl, mempty, mempty)
 
     addInput :: TxIn -> CoinSel Shelley -> CoinSel Shelley
-    addInput inp (pm, inps, outs) = (pm, inp : inps, outs)
+    addInput inp (pm, ttl, inps, outs) = (pm, ttl, inp : inps, outs)
 
     addOutput :: TxOut Cardano.Shelley -> CoinSel Shelley -> CoinSel Shelley
-    addOutput out (pm, inps, outs) = (pm, inps, out : outs)
+    addOutput out (pm, ttl, inps, outs) = (pm, ttl, inps, out : outs)
 
-    lock = undefined
+    lock :: CoinSel Shelley -> Tx Shelley
+    lock (_net, _ttl, [], _outs) = Left MissingInput
+    lock (_net, _ttl, _inps, []) = Left MissingOutput
+    lock (net, ttl, inps, outs) =
+        Right (net, neInps, neOuts, sigData)
+      where
+        sigData = Cardano.makeShelleyTransaction
+            TxExtraContent
+                { txMetadata = Nothing
+                , txWithdrawals = []
+                , txCertificates = []
+                , txUpdateProposal = Nothing
+                }
+            ttl
+            (Cardano.Lovelace 250000) -- here I need to use Cardano.feeCalculation or Cardano.feeEstimation
+            inps
+            outs
+        neInps  = NE.fromList $ reverse inps
+        neOuts  = NE.fromList $ reverse outs
+
     signWith = undefined
     serialize = undefined
 
