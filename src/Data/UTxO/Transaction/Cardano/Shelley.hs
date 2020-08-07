@@ -21,9 +21,7 @@ module Data.UTxO.Transaction.Cardano.Shelley
     ) where
 
 import Cardano.Api.Typed
-    ( NetworkId, TxExtraContent (..) )
-import Cardano.Api.Typed
-    ( TxIn (..), TxOut (..) )
+    ( NetworkId, TxExtraContent (..), TxIn (..), TxOut (..) )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash) )
 import Cardano.Slotting.Slot
@@ -80,7 +78,12 @@ instance MkPayment Shelley where
 
     type Tx Shelley = Either
         ErrMkPayment
-        (NetworkId, NonEmpty TxIn, NonEmpty (TxOut Cardano.Shelley), Cardano.TxBody Cardano.Shelley)
+        ( NetworkId
+        , NonEmpty TxIn
+        , NonEmpty (TxOut Cardano.Shelley)
+        , Cardano.TxBody Cardano.Shelley
+        , [Cardano.Witness Cardano.Shelley]
+        )
 
     empty :: Init Shelley -> CoinSel Shelley
     empty (net, ttl) = (net, ttl, mempty, mempty)
@@ -95,7 +98,7 @@ instance MkPayment Shelley where
     lock (_net, _ttl, [], _outs) = Left MissingInput
     lock (_net, _ttl, _inps, []) = Left MissingOutput
     lock (net, ttl, inps, outs) =
-        Right (net, neInps, neOuts, sigData)
+        Right (net, neInps, neOuts, sigData, mempty)
       where
         sigData = Cardano.makeShelleyTransaction
             TxExtraContent
