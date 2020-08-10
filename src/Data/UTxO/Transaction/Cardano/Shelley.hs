@@ -24,6 +24,8 @@ module Data.UTxO.Transaction.Cardano.Shelley
     -- Internal
     , Shelley
     , minUTxOvalue
+    , minFeeA
+    , minFeeB
     ) where
 
 
@@ -55,6 +57,8 @@ import Data.UTxO.Transaction.Cardano.Helpers
     ( ed25519ScalarMult )
 import Data.Word
     ( Word32, Word64 )
+import GHC.Natural
+    ( naturalToInteger )
 import Numeric.Natural
     ( Natural )
 
@@ -94,6 +98,11 @@ data Shelley
 minUTxOvalue :: Cardano.Lovelace
 minUTxOvalue = Cardano.Lovelace 1000000
 
+-- Values to calculate fee : b + a*txsize
+minFeeA, minFeeB :: Natural
+minFeeA = 44
+minFeeB = 155381
+
 type ByronSigningKey = (ByteString, SigningKey)
 
 instance MkPayment Shelley where
@@ -128,7 +137,7 @@ instance MkPayment Shelley where
     lock (_net, _ttl, [], _outs) = Left MissingInput
     lock (_net, _ttl, _inps, []) = Left MissingOutput
     lock (net, ttl, inps, outs)
-        | any (\(TxOut _ coin) -> coin <= minUTxOvalue) outs = Left TooLowOutput
+        | any (\(TxOut _ coin) -> coin < minUTxOvalue) outs = Left TooLowOutput
         | otherwise = Right (net, inps', outs', sigData, mempty)
       where
         sigData = Cardano.makeShelleyTransaction
@@ -139,11 +148,36 @@ instance MkPayment Shelley where
                 , txUpdateProposal = Nothing
                 }
             ttl
-            (Cardano.Lovelace 250000) -- here I need to use Cardano.feeCalculation or Cardano.feeEstimation
+            feeEstimated
             inps'
             outs'
         inps'  = reverse inps
         outs'  = reverse outs
+
+        -- The below is needed to estimate fee. The algo is following:
+        -- We start with minimal tx, and then estimate fee on top of this
+        -- starting points by adding extra inputs, outputs and witnesses
+        initialSigData = Cardano.makeShelleyTransaction
+            TxExtraContent
+                { txMetadata = Nothing
+                , txWithdrawals = []
+                , txCertificates = []
+                , txUpdateProposal = Nothing
+                }
+            ttl
+            (Cardano.Lovelace $ naturalToInteger minFeeB)
+            []
+            []
+        initialTx = Cardano.makeSignedTransaction [] initialSigData
+        feeEstimated = Cardano.estimateTransactionFee
+            net
+            minFeeB
+            minFeeA
+            initialTx
+            (length inps)
+            (length outs)
+            (length inps) --The number of extra Shelley key witnesses
+            0 --The number of extra Byron key witnesses - TO-DO
 
     signWith :: SignKey Shelley -> Tx Shelley -> Tx Shelley
     signWith _ (Left e) = Left e
