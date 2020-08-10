@@ -15,6 +15,7 @@ module Data.UTxO.Transaction.Cardano.Shelley
    -- * Constructing Primitives
     , mkInput
     , mkOutput
+    , mkShelleySignKey
 
     -- Internal
     , Shelley
@@ -24,12 +25,16 @@ import Cardano.Api.Typed
     ( NetworkId, TxExtraContent (..), TxIn (..), TxOut (..) )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash) )
+import Cardano.Crypto.Wallet
+    ( xprv )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Short
     ( toShort )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.UTxO.Transaction
@@ -71,7 +76,7 @@ instance MkPayment Shelley where
 
     type Input   Shelley = TxIn
     type Output  Shelley = TxOut Cardano.Shelley
-    type SignKey Shelley = ()
+    type SignKey Shelley = Cardano.ShelleyWitnessSigningKey
 
     type CoinSel Shelley =
         (NetworkId, SlotNo, [TxIn], [TxOut Cardano.Shelley])
@@ -158,3 +163,31 @@ mkOutput
 mkOutput coin bytes =
     Cardano.deserialiseFromRawBytes Cardano.AsShelleyAddress bytes >>=
     (\addr -> pure $ Cardano.TxOut addr (Cardano.Lovelace $ fromIntegral coin) )
+
+
+-- | Construct a 'SignKey' for /Shelley/ from primitive types.
+--
+-- __example__:
+--
+-- >>> mkShelleySignKey =<< fromBech32 "xprv13f0ve...nu4v4h875l"
+-- Just (SignKey ...)
+--
+-- @since 1.0.0
+mkShelleySignKey
+    :: ByteString
+        -- ^ A extended address private key and its chain code.
+        -- The key __must be 96 bytes__ long, internally made of two concatenated parts:
+        --
+        -- @
+        -- BYTES = PRV | CC
+        -- PRV   = 64OCTET  # a 64 bytes Ed25519 extended private key
+        -- CC    = 32OCTET  # a 32 bytes chain code
+        -- @
+        --
+        -- See also: 'fromBech32'.
+    -> Maybe (SignKey Shelley)
+mkShelleySignKey bytes
+    | BS.length bytes /= 96 = Nothing
+    | otherwise =
+        fmap (Cardano.WitnessPaymentExtendedKey . Cardano.PaymentExtendedSigningKey)
+        $ eitherToMaybe $ xprv bytes
