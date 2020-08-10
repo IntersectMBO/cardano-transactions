@@ -125,6 +125,8 @@ data ErrMkPayment
         -- ^ Payments must have at least one output
     | MissingSignature
         -- ^ Payments must have a signature for each input.
+    | TooLowOutput
+        -- ^ Each payment must not be smaller than minUTxOvalue
     deriving (Show, Read, Eq)
 
 -- $note

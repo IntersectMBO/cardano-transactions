@@ -23,6 +23,7 @@ module Data.UTxO.Transaction.Cardano.Shelley
 
     -- Internal
     , Shelley
+    , minUTxOvalue
     ) where
 
 
@@ -89,6 +90,10 @@ mkInit net ttl = (net, SlotNo ttl)
 -- Type-level constructor capturing types for 'Shelley'.
 data Shelley
 
+-- Minimum possible value for each output
+minUTxOvalue :: Cardano.Lovelace
+minUTxOvalue = Cardano.Lovelace 1000000
+
 type ByronSigningKey = (ByteString, SigningKey)
 
 instance MkPayment Shelley where
@@ -122,8 +127,9 @@ instance MkPayment Shelley where
     lock :: CoinSel Shelley -> Tx Shelley
     lock (_net, _ttl, [], _outs) = Left MissingInput
     lock (_net, _ttl, _inps, []) = Left MissingOutput
-    lock (net, ttl, inps, outs) =
-        Right (net, inps', outs', sigData, mempty)
+    lock (net, ttl, inps, outs)
+        | any (\(TxOut _ coin) -> coin <= minUTxOvalue) outs = Left TooLowOutput
+        | otherwise = Right (net, inps', outs', sigData, mempty)
       where
         sigData = Cardano.makeShelleyTransaction
             TxExtraContent
