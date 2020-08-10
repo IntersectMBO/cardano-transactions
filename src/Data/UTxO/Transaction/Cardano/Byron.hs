@@ -44,8 +44,6 @@ import Cardano.Crypto.Wallet
     ( toXPub, xprv )
 import Codec.CBOR.Read
     ( deserialiseFromBytes )
-import Crypto.Error
-    ( eitherCryptoError )
 import Crypto.Hash
     ( Blake2b_256, digestFromByteString )
 import Data.ByteString
@@ -56,6 +54,8 @@ import Data.List.NonEmpty
     ( NonEmpty, nonEmpty )
 import Data.UTxO.Transaction
     ( ErrMkPayment (..), MkPayment (..) )
+import Data.UTxO.Transaction.Cardano.Helpers
+    ( ed25519ScalarMult )
 import Data.Word
     ( Word32 )
 import GHC.Exts
@@ -68,7 +68,6 @@ import qualified Cardano.Crypto.Signing as CC
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.ECC.Edwards25519 as Ed25519
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
@@ -171,11 +170,6 @@ mkSignKey bytes
         let (prv, cc) = BS.splitAt 64 bytes
         pub <- ed25519ScalarMult (BS.take 32 prv)
         fmap SigningKey $ eitherToMaybe $ xprv $ prv <> pub <> cc
-  where
-    ed25519ScalarMult :: ByteString -> Maybe ByteString
-    ed25519ScalarMult bs = do
-        scalar <- eitherToMaybe $ eitherCryptoError $ Ed25519.scalarDecodeLong bs
-        pure $ Ed25519.pointEncode $ Ed25519.toPoint scalar
 
 --
 -- MkPayment instance

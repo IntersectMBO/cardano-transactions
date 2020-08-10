@@ -1,6 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_HADDOCK prune #-}
@@ -16,19 +19,29 @@ module Data.UTxO.Transaction.Cardano.Shelley
     , mkInput
     , mkOutput
     , mkShelleySignKey
+    , mkByronSignKey
 
     -- Internal
     , Shelley
     ) where
 
+
 import Cardano.Api.Typed
     ( NetworkId, TxExtraContent (..), TxIn (..), TxOut (..) )
+import Cardano.Binary
+    ( serialize' )
 import Cardano.Crypto.Hash.Class
-    ( Hash (UnsafeHash) )
+    ( Hash (UnsafeHash), hashWith )
+import Cardano.Crypto.Signing
+    ( SigningKey (..) )
 import Cardano.Crypto.Wallet
     ( xprv )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
+import Control.Monad
+    ( replicateM )
+import Control.Monad.Fail
+    ( MonadFail )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Short
@@ -39,14 +52,22 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.UTxO.Transaction
     ( ErrMkPayment (..), MkPayment (..) )
+import Data.UTxO.Transaction.Cardano.Helpers
+    ( ed25519ScalarMult )
 import Data.Word
     ( Word32, Word64 )
 import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Api.Typed as Cardano
+import qualified Cardano.Chain.Common as Byron
+import qualified Codec.CBOR.Decoding as CBOR
+import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
+import qualified Shelley.Spec.Ledger.Address.Bootstrap as Bootstrap
+
 
 -- | Construct a payment 'Init' for /Shelley/ from primitive types.
 --
@@ -71,12 +92,14 @@ mkInit net ttl = (net, SlotNo ttl)
 -- Type-level constructor capturing types for 'Shelley'.
 data Shelley
 
+type ByronSigningKey = (ByteString, SigningKey)
+
 instance MkPayment Shelley where
     type Init Shelley = (NetworkId, SlotNo)
 
     type Input   Shelley = TxIn
     type Output  Shelley = TxOut Cardano.Shelley
-    type SignKey Shelley = Cardano.ShelleyWitnessSigningKey
+    type SignKey Shelley = Either ByronSigningKey Cardano.ShelleyWitnessSigningKey
 
     type CoinSel Shelley =
         (NetworkId, SlotNo, [TxIn], [TxOut Cardano.Shelley])
@@ -121,10 +144,20 @@ instance MkPayment Shelley where
 
     signWith :: SignKey Shelley -> Tx Shelley -> Tx Shelley
     signWith _ (Left e) = Left e
-    signWith signingKey (Right (net, inps, outs, sigData, wits)) =
+    signWith (Right signingKey) (Right (net, inps, outs, sigData, wits)) =
         Right (net, inps, outs, sigData, shelleyWit : wits)
       where
         shelleyWit = Cardano.makeShelleyKeyWitness sigData signingKey
+    signWith (Left (addr, signingKey)) (Right (net, inps, outs, sigData, wits)) =
+        Right (net, inps, outs, sigData, byronWit : wits)
+      where
+        byronWit = Cardano.ShelleyBootstrapWitness $
+            Bootstrap.makeBootstrapWitness txHash signingKey addrAttr
+        (Cardano.ShelleyTxBody body _) = sigData
+        txHash = hashWith serialize' body
+        addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
+            (toHDPayloadAddress addr)
+            (Cardano.toByronNetworkMagic net)
 
     serialize = undefined
 
@@ -172,13 +205,14 @@ mkOutput coin bytes =
 
 
 -- | Construct a 'SignKey' for /Shelley/ from primitive types.
+-- This is for Shelley era keys.
 --
 -- __example__:
 --
 -- >>> mkShelleySignKey =<< fromBech32 "xprv13f0ve...nu4v4h875l"
 -- Just (SignKey ...)
 --
--- @since 1.0.0
+-- @since 2.0.0
 mkShelleySignKey
     :: ByteString
         -- ^ A extended address private key and its chain code.
@@ -195,5 +229,87 @@ mkShelleySignKey
 mkShelleySignKey bytes
     | BS.length bytes /= 96 = Nothing
     | otherwise =
-        fmap (Cardano.WitnessPaymentExtendedKey . Cardano.PaymentExtendedSigningKey)
+        fmap (Right . Cardano.WitnessPaymentExtendedKey . Cardano.PaymentExtendedSigningKey)
         $ eitherToMaybe $ xprv bytes
+
+-- | Construct a 'SignKey' for /Shelley/ from primitive types.
+-- This is for Byron era keys.
+--
+-- __example__:
+--
+-- >>> let (Just addr) = frombase58 "DdzFFzCqrh...Dwg3SiaHiEL"
+-- >>> mkByronSignKey addr =<< fromBech32 "xprv13f0ve...nu4v4h875l"
+-- Just (SignKey ...)
+--
+-- @since 2.0.0
+mkByronSignKey
+    :: ByteString
+        -- ^ Address derived from extended priate key below
+        -- See also: 'fromBase58'.
+    -> ByteString
+        -- ^ A extended address private key and its chain code.
+        -- The key __must be 96 bytes__ long, internally made of two concatenated parts:
+        --
+        -- @
+        -- BYTES = PRV | CC
+        -- PRV   = 64OCTET  # a 64 bytes Ed25519 extended private key
+        -- CC    = 32OCTET  # a 32 bytes chain code
+        -- @
+        --
+        -- See also: 'fromBase16'.
+    -> Maybe (SignKey Shelley)
+mkByronSignKey bytes addr
+    | BS.length bytes /= 96 && BS.length addr /= 76 = Nothing
+    | otherwise = do
+        let (prv, cc) = BS.splitAt 64 bytes
+        pub <- ed25519ScalarMult (BS.take 32 prv)
+        fmap (Left . (addr,) . SigningKey) $ eitherToMaybe $ xprv $ prv <> pub <> cc
+
+toHDPayloadAddress :: ByteString -> Maybe Byron.HDAddressPayload
+toHDPayloadAddress addr = do
+    payload <- deserialiseCbor decodeAddressPayload addr
+    attributes <- deserialiseCbor decodeAllAttributes' payload
+    case filter (\(tag,_) -> tag == 1) attributes of
+        [(1, bytes)] ->
+            Byron.HDAddressPayload <$> decodeNestedBytes CBOR.decodeBytes bytes
+        _ ->
+            Nothing
+  where
+    decodeAllAttributes' = do
+        _ <- CBOR.decodeListLenCanonicalOf 3
+        _ <- CBOR.decodeBytes
+        decodeAllAttributes
+
+    decodeAllAttributes = do
+        n <- CBOR.decodeMapLenCanonical -- Address Attributes length
+        replicateM n decodeAttr
+      where
+        decodeAttr = (,) <$> CBOR.decodeWord8 <*> CBOR.decodeBytes
+
+    decodeAddressPayload = do
+        _ <- CBOR.decodeListLenCanonicalOf 2
+        _ <- CBOR.decodeTag
+        bytes <- CBOR.decodeBytes
+        _ <- CBOR.decodeWord32 -- CRC
+        return bytes
+
+    decodeNestedBytes
+        :: MonadFail m
+        => (forall s. CBOR.Decoder s r)
+        -> ByteString
+        -> m r
+    decodeNestedBytes dec bytes =
+        case CBOR.deserialiseFromBytes dec (BL.fromStrict bytes) of
+            Right ("", res) ->
+                pure res
+            Right _ ->
+                fail "Leftovers when decoding nested bytes"
+            _ ->
+                fail "Could not decode nested bytes"
+
+    deserialiseCbor
+        :: (forall s. CBOR.Decoder s a)
+        -> ByteString
+        -> Maybe a
+    deserialiseCbor dec =
+        fmap snd . eitherToMaybe . CBOR.deserialiseFromBytes dec . BL.fromStrict

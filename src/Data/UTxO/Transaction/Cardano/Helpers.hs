@@ -12,8 +12,12 @@ module Data.UTxO.Transaction.Cardano.Helpers
     , fromBase58
     , fromBase64
     , fromBech32
+
+    , ed25519ScalarMult
     ) where
 
+import Crypto.Error
+    ( eitherCryptoError )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase )
 import Data.ByteString
@@ -26,6 +30,7 @@ import Data.Text
     ( Text )
 
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Crypto.ECC.Edwards25519 as Ed25519
 import qualified Data.Text.Encoding as T
 
 --
@@ -58,3 +63,8 @@ fromBech32 :: Text -> Maybe ByteString
 fromBech32 txt = do
     (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient txt)
     Bech32.dataPartToBytes dp
+
+ed25519ScalarMult :: ByteString -> Maybe ByteString
+ed25519ScalarMult bs = do
+    scalar <- eitherToMaybe $ eitherCryptoError $ Ed25519.scalarDecodeLong bs
+    pure $ Ed25519.pointEncode $ Ed25519.toPoint scalar
