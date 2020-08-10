@@ -41,6 +41,7 @@ library:
   - cryptonite
   - extra
   - memory
+  - ouroboros-consensus-shelley
   - shelley-spec-ledger
   - text
   when:

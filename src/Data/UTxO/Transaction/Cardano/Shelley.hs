@@ -48,8 +48,6 @@ import Data.ByteString.Short
     ( toShort )
 import Data.Either.Extra
     ( eitherToMaybe )
-import Data.List.NonEmpty
-    ( NonEmpty )
 import Data.UTxO.Transaction
     ( ErrMkPayment (..), MkPayment (..) )
 import Data.UTxO.Transaction.Cardano.Helpers
@@ -65,9 +63,8 @@ import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.List.NonEmpty as NE
+import qualified Ouroboros.Consensus.Shelley.Ledger as Ouroboros
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as Bootstrap
-
 
 -- | Construct a payment 'Init' for /Shelley/ from primitive types.
 --
@@ -107,8 +104,8 @@ instance MkPayment Shelley where
     type Tx Shelley = Either
         ErrMkPayment
         ( NetworkId
-        , NonEmpty TxIn
-        , NonEmpty (TxOut Cardano.Shelley)
+        , [TxIn]
+        , [TxOut Cardano.Shelley]
         , Cardano.TxBody Cardano.Shelley
         , [Cardano.Witness Cardano.Shelley]
         )
@@ -126,7 +123,7 @@ instance MkPayment Shelley where
     lock (_net, _ttl, [], _outs) = Left MissingInput
     lock (_net, _ttl, _inps, []) = Left MissingOutput
     lock (net, ttl, inps, outs) =
-        Right (net, neInps, neOuts, sigData, mempty)
+        Right (net, inps', outs', sigData, mempty)
       where
         sigData = Cardano.makeShelleyTransaction
             TxExtraContent
@@ -137,10 +134,10 @@ instance MkPayment Shelley where
                 }
             ttl
             (Cardano.Lovelace 250000) -- here I need to use Cardano.feeCalculation or Cardano.feeEstimation
-            inps
-            outs
-        neInps  = NE.fromList $ reverse inps
-        neOuts  = NE.fromList $ reverse outs
+            inps'
+            outs'
+        inps'  = reverse inps
+        outs'  = reverse outs
 
     signWith :: SignKey Shelley -> Tx Shelley -> Tx Shelley
     signWith _ (Left e) = Left e
@@ -159,7 +156,13 @@ instance MkPayment Shelley where
             (toHDPayloadAddress addr)
             (Cardano.toByronNetworkMagic net)
 
-    serialize = undefined
+    serialize :: Tx Shelley -> Either ErrMkPayment ByteString
+    serialize (Left e) = Left e
+    serialize (Right (_net, inps, _outs, sigData, wits))
+        | length inps /= length wits = Left MissingSignature
+        | otherwise = Right $ serialize' $ Ouroboros.mkShelleyTx tx
+      where
+        (Cardano.ShelleyTx tx) = Cardano.makeSignedTransaction wits sigData
 
 -- | Construct a payment 'Input' for /Shelley/ from primitive types.
 --

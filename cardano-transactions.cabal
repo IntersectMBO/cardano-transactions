@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8bebbda4230df54afce0caf35edbc45e3d8c746981845efe700ca5aedc585e9d
+-- hash: bf098b434de103e4ecc54dd3ef1d53a80e42bfeb08d3022e4961627066fffb1f
 
 name:           cardano-transactions
 version:        1.0.0
@@ -56,6 +56,7 @@ library
     , cryptonite
     , extra
     , memory
+    , ouroboros-consensus-shelley
     , shelley-spec-ledger
     , text
   if flag(release)
