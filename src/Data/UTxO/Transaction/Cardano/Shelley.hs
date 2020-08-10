@@ -119,7 +119,13 @@ instance MkPayment Shelley where
         neInps  = NE.fromList $ reverse inps
         neOuts  = NE.fromList $ reverse outs
 
-    signWith = undefined
+    signWith :: SignKey Shelley -> Tx Shelley -> Tx Shelley
+    signWith _ (Left e) = Left e
+    signWith signingKey (Right (net, inps, outs, sigData, wits)) =
+        Right (net, inps, outs, sigData, shelleyWit : wits)
+      where
+        shelleyWit = Cardano.makeShelleyKeyWitness sigData signingKey
+
     serialize = undefined
 
 -- | Construct a payment 'Input' for /Shelley/ from primitive types.
