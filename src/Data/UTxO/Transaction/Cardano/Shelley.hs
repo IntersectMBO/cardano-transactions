@@ -68,7 +68,6 @@ import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
-import qualified Ouroboros.Consensus.Shelley.Ledger as Ouroboros
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as Bootstrap
 
 -- | Construct a payment 'Init' for /Shelley/ from primitive types.
@@ -200,9 +199,9 @@ instance MkPayment Shelley where
     serialize (Left e) = Left e
     serialize (Right (_net, inps, _outs, sigData, wits))
         | length inps /= length wits = Left MissingSignature
-        | otherwise = Right $ serialize' $ Ouroboros.mkShelleyTx tx
+        | otherwise = Right $ Cardano.serialiseToCBOR tx
       where
-        (Cardano.ShelleyTx tx) = Cardano.makeSignedTransaction wits sigData
+        tx = Cardano.makeSignedTransaction wits sigData
 
 -- | Construct a payment 'Input' for /Shelley/ from primitive types.
 --
