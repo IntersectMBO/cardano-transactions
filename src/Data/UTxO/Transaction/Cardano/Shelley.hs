@@ -117,10 +117,12 @@ instance MkPayment Shelley where
     type Tx Shelley = Either
         ErrMkPayment
         ( NetworkId
+        , SlotNo
         , [TxIn]
         , [TxOut Cardano.Shelley]
         , Cardano.TxBody Cardano.Shelley
         , [Cardano.Witness Cardano.Shelley]
+        , (Int, Int)
         )
 
     empty :: Init Shelley -> CoinSel Shelley
@@ -137,7 +139,7 @@ instance MkPayment Shelley where
     lock (_net, _ttl, _inps, []) = Left MissingOutput
     lock (net, ttl, inps, outs)
         | any (\(TxOut _ coin) -> coin < minUTxOvalue) outs = Left TooLowOutput
-        | otherwise = Right (net, inps', outs', sigData, mempty)
+        | otherwise = Right (net, ttl, inps', outs', sigData, mempty, (0,0))
       where
         sigData = Cardano.makeShelleyTransaction
             TxExtraContent
@@ -147,45 +149,20 @@ instance MkPayment Shelley where
                 , txUpdateProposal = Nothing
                 }
             ttl
-            feeEstimated
+            (Cardano.Lovelace $ naturalToInteger minFeeB)
             inps'
             outs'
         inps'  = reverse inps
         outs'  = reverse outs
 
-        -- The below is needed to estimate fee. The algo is following:
-        -- We start with minimal tx, and then estimate fee on top of this
-        -- starting points by adding extra inputs, outputs and witnesses
-        initialSigData = Cardano.makeShelleyTransaction
-            TxExtraContent
-                { txMetadata = Nothing
-                , txWithdrawals = []
-                , txCertificates = []
-                , txUpdateProposal = Nothing
-                }
-            ttl
-            (Cardano.Lovelace $ naturalToInteger minFeeB)
-            []
-            []
-        initialTx = Cardano.makeSignedTransaction [] initialSigData
-        feeEstimated = Cardano.estimateTransactionFee
-            net
-            minFeeB
-            minFeeA
-            initialTx
-            (length inps)
-            (length outs)
-            (length inps) --The number of extra Shelley key witnesses
-            0 --The number of extra Byron key witnesses - TO-DO
-
     signWith :: SignKey Shelley -> Tx Shelley -> Tx Shelley
     signWith _ (Left e) = Left e
-    signWith (Right signingKey) (Right (net, inps, outs, sigData, wits)) =
-        Right (net, inps, outs, sigData, shelleyWit : wits)
+    signWith (Right signingKey) (Right (net, ttl, inps, outs, sigData, wits, (nByron, nShelley))) =
+        Right (net, ttl, inps, outs, sigData, shelleyWit : wits, (nByron, nShelley + 1))
       where
         shelleyWit = Cardano.makeShelleyKeyWitness sigData signingKey
-    signWith (Left (addr, signingKey)) (Right (net, inps, outs, sigData, wits)) =
-        Right (net, inps, outs, sigData, byronWit : wits)
+    signWith (Left (addr, signingKey)) (Right (net, ttl, inps, outs, sigData, wits, (nByron, nShelley))) =
+        Right (net, ttl, inps, outs, sigData, byronWit : wits, (nByron + 1, nShelley))
       where
         byronWit = Cardano.ShelleyBootstrapWitness $
             Bootstrap.makeBootstrapWitness txHash signingKey addrAttr
@@ -197,11 +174,32 @@ instance MkPayment Shelley where
 
     serialize :: Tx Shelley -> Either ErrMkPayment ByteString
     serialize (Left e) = Left e
-    serialize (Right (_net, inps, _outs, sigData, wits))
+    serialize (Right (net, ttl, inps, outs, sigData, wits, (nByron, nShelley)))
         | length inps /= length wits = Left MissingSignature
         | otherwise = Right $ Cardano.serialiseToCBOR tx
       where
-        tx = Cardano.makeSignedTransaction wits sigData
+        tx = Cardano.makeSignedTransaction wits sigData'
+        dummyTx = Cardano.makeSignedTransaction [] sigData
+        feeEstimated = Cardano.estimateTransactionFee
+            net
+            minFeeB
+            minFeeA
+            dummyTx
+            0 -- no more extra inps
+            0 -- no more extra outputs
+            nShelley
+            nByron
+        sigData' = Cardano.makeShelleyTransaction
+            TxExtraContent
+                { txMetadata = Nothing
+                , txWithdrawals = []
+                , txCertificates = []
+                , txUpdateProposal = Nothing
+                }
+            ttl
+            feeEstimated
+            inps
+            outs
 
 -- | Construct a payment 'Input' for /Shelley/ from primitive types.
 --
