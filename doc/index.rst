@@ -1,6 +1,6 @@
-############
-cardano-node
-############
+####################
+cardano-transactions
+####################
 
 .. include:: ../README.rst
 
@@ -18,4 +18,5 @@ cardano-node
 
    getting-started/transactions
    getting-started/api-documentation
+   getting-started/dependencies
    getting-started/contributing
