@@ -1,4 +1,4 @@
-## Payment Transactions
+# Payment Transactions
 
 We call _Payment_ a simple UTxO transactions with no metadata, moving funds from a set of inputs to a set of outputs.
 
