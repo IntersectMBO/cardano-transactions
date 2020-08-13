@@ -21,6 +21,7 @@ module Data.UTxO.Transaction.Cardano.Shelley
     , mkOutput
     , mkShelleySignKey
     , mkByronSignKey
+    , estimateFee
 
     -- Internal
     , Shelley
@@ -85,8 +86,53 @@ mkInit
         -- ^ A network tag, Mainnet or Testnet with NetworkMagic specified
     -> Word64
         -- ^ A ttl expressed in slot number counted from the beginning of blockchain
+    -> Word64
+        -- ^ fee of tx as taken when constructing change outputs
+        -- see also estimateFee
     -> Init Shelley
-mkInit net ttl = (net, SlotNo ttl)
+mkInit net ttl fee = (net, SlotNo ttl, Cardano.Lovelace $ fromIntegral fee)
+
+-- | Estimate a payment fee for /Shelley/ using the number of inputs, outputs.
+--
+-- __examples__:
+--
+-- >>> estimateFee 1 2 1 0 Cardano.Mainnet
+-- Lovelace 168097
+--
+-- >>> estimateFee 1 2 1 0 (Cardano.Testnet (Cardano.NetworkMagic 12345))
+-- Lovelace 168097
+--
+-- estimateFee 1 2 0 1 Cardano.Mainnet
+-- Lovelace 169725
+-- @since 2.0.0
+estimateFee
+    :: Int
+        -- ^ Number of inputs in tx
+    -> Int
+        -- ^ Number of outputs in tx
+    -> Int
+        -- ^ Number of Shelley witnesses in tx
+    -> Int
+        -- ^ Number of Byron witnesses in tx
+    -> NetworkId
+        -- ^ Network id
+    -> Cardano.Lovelace
+estimateFee nInps nOuts nShelleyWits nByronWits net =
+    Cardano.estimateTransactionFee net minFeeB minFeeA dummyTx nInps nOuts nShelleyWits nByronWits
+  where
+      ttl = SlotNo 10000
+      initialSigData = Cardano.makeShelleyTransaction
+          TxExtraContent
+          { txMetadata = Nothing
+          , txWithdrawals = []
+          , txCertificates = []
+          , txUpdateProposal = Nothing
+          }
+          ttl
+          (Cardano.Lovelace $ naturalToInteger minFeeB)
+          []
+          []
+      dummyTx = Cardano.makeSignedTransaction [] initialSigData
 
 --
 -- MkPayment instance
@@ -107,41 +153,39 @@ minFeeB = 155381
 type ByronSigningKey = (ByteString, SigningKey)
 
 instance MkPayment Shelley where
-    type Init Shelley = (NetworkId, SlotNo)
+    type Init Shelley = (NetworkId, SlotNo, Cardano.Lovelace)
 
     type Input   Shelley = TxIn
     type Output  Shelley = TxOut Cardano.Shelley
     type SignKey Shelley = Either ByronSigningKey Cardano.ShelleyWitnessSigningKey
 
     type CoinSel Shelley =
-        (NetworkId, SlotNo, [TxIn], [TxOut Cardano.Shelley])
+        (NetworkId, SlotNo, Cardano.Lovelace, [TxIn], [TxOut Cardano.Shelley])
 
     type Tx Shelley = Either
         ErrMkPayment
         ( NetworkId
-        , SlotNo
         , [TxIn]
         , [TxOut Cardano.Shelley]
         , Cardano.TxBody Cardano.Shelley
         , [Cardano.Witness Cardano.Shelley]
-        , (Int, Int)
         )
 
     empty :: Init Shelley -> CoinSel Shelley
-    empty (net, ttl) = (net, ttl, mempty, mempty)
+    empty (net, ttl, fee) = (net, ttl, fee, mempty, mempty)
 
     addInput :: TxIn -> CoinSel Shelley -> CoinSel Shelley
-    addInput inp (pm, ttl, inps, outs) = (pm, ttl, inp : inps, outs)
+    addInput inp (pm, ttl, fee, inps, outs) = (pm, ttl, fee, inp : inps, outs)
 
     addOutput :: TxOut Cardano.Shelley -> CoinSel Shelley -> CoinSel Shelley
-    addOutput out (pm, ttl, inps, outs) = (pm, ttl, inps, out : outs)
+    addOutput out (pm, ttl, fee, inps, outs) = (pm, ttl, fee, inps, out : outs)
 
     lock :: CoinSel Shelley -> Tx Shelley
-    lock (_net, _ttl, [], _outs) = Left MissingInput
-    lock (_net, _ttl, _inps, []) = Left MissingOutput
-    lock (net, ttl, inps, outs)
+    lock (_net, _ttl, _fee, [], _outs) = Left MissingInput
+    lock (_net, _ttl, _fee, _inps, []) = Left MissingOutput
+    lock (net, ttl, fee, inps, outs)
         | any (\(TxOut _ coin) -> coin < minUTxOvalue) outs = Left TooLowOutput
-        | otherwise = Right (net, ttl, inps', outs', sigData, mempty, (0,0))
+        | otherwise = Right (net, inps', outs', sigData, mempty)
       where
         sigData = Cardano.makeShelleyTransaction
             TxExtraContent
@@ -151,7 +195,7 @@ instance MkPayment Shelley where
                 , txUpdateProposal = Nothing
                 }
             ttl
-            (Cardano.Lovelace $ naturalToInteger minFeeB)
+            fee
             inps'
             outs'
         inps'  = reverse inps
@@ -159,12 +203,12 @@ instance MkPayment Shelley where
 
     signWith :: SignKey Shelley -> Tx Shelley -> Tx Shelley
     signWith _ (Left e) = Left e
-    signWith (Right signingKey) (Right (net, ttl, inps, outs, sigData, wits, (nByron, nShelley))) =
-        Right (net, ttl, inps, outs, sigData, shelleyWit : wits, (nByron, nShelley + 1))
+    signWith (Right signingKey) (Right (net, inps, outs, sigData, wits)) =
+        Right (net, inps, outs, sigData, shelleyWit : wits)
       where
         shelleyWit = Cardano.makeShelleyKeyWitness sigData signingKey
-    signWith (Left (addr, signingKey)) (Right (net, ttl, inps, outs, sigData, wits, (nByron, nShelley))) =
-        Right (net, ttl, inps, outs, sigData, byronWit : wits, (nByron + 1, nShelley))
+    signWith (Left (addr, signingKey)) (Right (net, inps, outs, sigData, wits)) =
+        Right (net, inps, outs, sigData, byronWit : wits)
       where
         byronWit = Cardano.ShelleyBootstrapWitness $
             Ledger.makeBootstrapWitness txHash signingKey addrAttr
@@ -176,32 +220,11 @@ instance MkPayment Shelley where
 
     serialize :: Tx Shelley -> Either ErrMkPayment ByteString
     serialize (Left e) = Left e
-    serialize (Right (net, ttl, inps, outs, sigData, wits, (nByron, nShelley)))
+    serialize (Right (_net, inps, _outs, sigData, wits))
         | length inps /= length wits = Left MissingSignature
         | otherwise = Right $ Cardano.serialiseToCBOR tx
       where
-        tx = Cardano.makeSignedTransaction wits sigData'
-        dummyTx = Cardano.makeSignedTransaction [] sigData
-        feeEstimated = Cardano.estimateTransactionFee
-            net
-            minFeeB
-            minFeeA
-            dummyTx
-            0 -- no more extra inps
-            0 -- no more extra outputs
-            nShelley
-            nByron
-        sigData' = Cardano.makeShelleyTransaction
-            TxExtraContent
-                { txMetadata = Nothing
-                , txWithdrawals = []
-                , txCertificates = []
-                , txUpdateProposal = Nothing
-                }
-            ttl
-            feeEstimated
-            inps
-            outs
+        tx = Cardano.makeSignedTransaction wits sigData
 
 -- | Construct a payment 'Input' for /Shelley/ from primitive types.
 --
@@ -243,11 +266,10 @@ mkOutput
     -> Maybe (Output Shelley)
 mkOutput coin bytes =
     Cardano.deserialiseFromRawBytes Cardano.AsShelleyAddress bytes >>= \case
-      Cardano.ShelleyAddress _ (Ledger.ScriptHashObj _) _ -> Nothing
-      Cardano.ByronAddress _ -> Nothing
-      addr@(Cardano.ShelleyAddress _ (Ledger.KeyHashObj _) _) ->
-        pure $ Cardano.TxOut addr (Cardano.Lovelace $ fromIntegral coin)
-
+        Cardano.ShelleyAddress _ (Ledger.ScriptHashObj _) _ -> Nothing
+        Cardano.ByronAddress _ -> Nothing
+        addr@(Cardano.ShelleyAddress _ (Ledger.KeyHashObj _) _) ->
+            pure $ Cardano.TxOut addr (Cardano.Lovelace $ fromIntegral coin)
 
 -- | Construct a 'SignKey' for /Shelley/ from primitive types.
 -- This is for Shelley era keys.
@@ -289,7 +311,7 @@ mkShelleySignKey bytes
 -- @since 2.0.0
 mkByronSignKey
     :: ByteString
-        -- ^ Address derived from extended priate key below
+        -- ^ Address derived from extended private key below
         -- See also: 'fromBase58'.
     -> ByteString
         -- ^ A extended address private key and its chain code.

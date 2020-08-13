@@ -66,21 +66,21 @@ spec = do
             forAll genInvalidSignKey (isNothing . mkShelleySignKey)
 
         it "Missing Input" $ do
-            let result = Tx.empty (mkInit Mainnet 430000)
+            let result = Tx.empty dummyInit
                        & Tx.addOutput (unsafeMkOutput 14 (addrs !! 0))
                        & Tx.lock
                        & Tx.serialize
             result `shouldBe` Left MissingInput
 
         it "Missing Output" $ do
-            let result = Tx.empty (mkInit Mainnet 430000)
+            let result = Tx.empty dummyInit
                        & Tx.addInput (unsafeMkInput 0 (txids !! 0))
                        & Tx.lock
                        & Tx.serialize
             result `shouldBe` Left MissingOutput
 
         it "Too low output" $ do
-            let result = Tx.empty (mkInit Mainnet 430000)
+            let result = Tx.empty dummyInit
                        & Tx.addInput (unsafeMkInput 0 (txids !! 0))
                        & Tx.addOutput (unsafeMkOutput 14 (addrs !! 0))
                        & Tx.lock
@@ -88,7 +88,7 @@ spec = do
             result `shouldBe` Left TooLowOutput
 
         it "Missing Signature" $ do
-            let result = Tx.empty (mkInit Mainnet 430000)
+            let result = Tx.empty dummyInit
                        & Tx.addInput (unsafeMkInput 0 (txids !! 0))
                        & Tx.addOutput (unsafeMkOutput 1400000 (addrs !! 0))
                        & Tx.lock
@@ -98,6 +98,8 @@ spec = do
 --
 -- Internal
 --
+dummyInit :: Init Shelley
+dummyInit = mkInit Mainnet 430000 16500
 
 unsafeMkInput :: Word32 -> Text -> Input Shelley
 unsafeMkInput ix str = fromJust $ mkInput ix (unsafeB16 str)
