@@ -92,7 +92,9 @@ mkInit
     -> Init Shelley
 mkInit net ttl fee = (net, SlotNo ttl, Cardano.Lovelace $ fromIntegral fee)
 
--- | Estimate a payment fee for /Shelley/ using the number of inputs, outputs.
+-- | Estimate a payment fee for /Shelley/ ttransaction using the number of
+-- inputs and outputs and the sorts of witnesses. Please, notice that this
+-- method overetimates the minimum acceptable fees.
 --
 -- __examples__:
 --

@@ -2,7 +2,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -56,7 +55,8 @@ spec = do
             forAll genInvalidId (isNothing . mkInput ix)
 
         prop "Invalid Output" $ \(coin :: Word64) -> do
-            let genInvalidAddress = BS.pack <$> arbitrary
+            let genInvalidAddress =
+                    (BS.pack <$> arbitrary) `suchThat` ((< 30) . BS.length)
             forAll genInvalidAddress (isNothing . mkOutput (fromIntegral coin))
 
         prop "Invalid SignKey" $ do
