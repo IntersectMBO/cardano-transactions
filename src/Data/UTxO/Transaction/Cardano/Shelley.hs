@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -68,7 +69,8 @@ import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
-import qualified Shelley.Spec.Ledger.Address.Bootstrap as Bootstrap
+import qualified Shelley.Spec.Ledger.Address.Bootstrap as Ledger
+import qualified Shelley.Spec.Ledger.Credential as Ledger
 
 -- | Construct a payment 'Init' for /Shelley/ from primitive types.
 --
@@ -165,7 +167,7 @@ instance MkPayment Shelley where
         Right (net, ttl, inps, outs, sigData, byronWit : wits, (nByron + 1, nShelley))
       where
         byronWit = Cardano.ShelleyBootstrapWitness $
-            Bootstrap.makeBootstrapWitness txHash signingKey addrAttr
+            Ledger.makeBootstrapWitness txHash signingKey addrAttr
         (Cardano.ShelleyTxBody body _) = sigData
         txHash = hashWith serialize' body
         addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
@@ -240,8 +242,11 @@ mkOutput
         -- ^ Output Address. See also: 'fromBase58', 'fromBase16', 'fromBech32'.
     -> Maybe (Output Shelley)
 mkOutput coin bytes =
-    Cardano.deserialiseFromRawBytes Cardano.AsShelleyAddress bytes >>=
-    (\addr -> pure $ Cardano.TxOut addr (Cardano.Lovelace $ fromIntegral coin) )
+    Cardano.deserialiseFromRawBytes Cardano.AsShelleyAddress bytes >>= \case
+      Cardano.ShelleyAddress _ (Ledger.ScriptHashObj _) _ -> Nothing
+      Cardano.ByronAddress _ -> Nothing
+      addr@(Cardano.ShelleyAddress _ (Ledger.KeyHashObj _) _) ->
+        pure $ Cardano.TxOut addr (Cardano.Lovelace $ fromIntegral coin)
 
 
 -- | Construct a 'SignKey' for /Shelley/ from primitive types.

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bf098b434de103e4ecc54dd3ef1d53a80e42bfeb08d3022e4961627066fffb1f
+-- hash: 0908bb5e02f0034fef586b8a578099ac509d2efe305d4af7f954b40f35919dbb
 
 name:           cardano-transactions
 version:        1.0.0
@@ -90,6 +90,7 @@ test-suite unit
   main-is: Main.hs
   other-modules:
       Data.UTxO.Transaction.Cardano.ByronSpec
+      Data.UTxO.Transaction.Cardano.ShelleySpec
       Paths_cardano_transactions
   hs-source-dirs:
       test
