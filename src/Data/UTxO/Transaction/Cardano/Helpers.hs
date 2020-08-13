@@ -13,13 +13,15 @@ module Data.UTxO.Transaction.Cardano.Helpers
     , fromBase64
     , fromBech32
 
+    , toBase16
+
     , ed25519ScalarMult
     ) where
 
 import Crypto.Error
     ( eitherCryptoError )
 import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase )
+    ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
@@ -42,6 +44,13 @@ import qualified Data.Text.Encoding as T
 -- @since 1.0.0
 fromBase16 :: Text -> Maybe ByteString
 fromBase16 = eitherToMaybe . convertFromBase Base16 . T.encodeUtf8
+
+-- | Convert a a raw 'ByteString' into base16 encoded 'Text'
+--
+-- @since 2.0.0
+toBase16 :: ByteString -> Text
+toBase16 = T.decodeUtf8 . convertToBase Base16
+
 
 -- | Convert a base58 encoded 'Text' into a raw 'ByteString'
 --

@@ -297,9 +297,11 @@ mkShelleySignKey
     -> Maybe (SignKey Shelley)
 mkShelleySignKey bytes
     | BS.length bytes /= 96 = Nothing
-    | otherwise =
-        fmap (Right . Cardano.WitnessPaymentExtendedKey . Cardano.PaymentExtendedSigningKey)
-        $ eitherToMaybe $ xprv bytes
+    | otherwise = do
+          let (prv, cc) = BS.splitAt 64 bytes
+          pub <- ed25519ScalarMult (BS.take 32 prv)
+          fmap (Right . Cardano.WitnessPaymentExtendedKey . Cardano.PaymentExtendedSigningKey)
+              $ eitherToMaybe $ xprv $ prv <> pub <> cc
 
 -- | Construct a 'SignKey' for /Shelley/ from primitive types.
 -- This is for Byron era keys.
