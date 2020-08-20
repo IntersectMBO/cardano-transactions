@@ -1,20 +1,4 @@
-<p align="center">
-  <big><strong>Cardano Transactions</strong></big>
-</p>
-
-<p align="center">
-  <a href="https://hackage.haskell.org/package/cardano-transactions"><img src="https://img.shields.io/hackage/v/cardano-transactions?style=for-the-badge" /></a>
-  <a href="https://github.com/input-output-hk/cardano-transactions/releases"><img src="https://img.shields.io/github/v/release/input-output-hk/cardano-transactions?color=%239b59b6&label=RELEASE&sort=semver&style=for-the-badge"/></a>
-  <a href="https://github.com/input-output-hk/cardano-transactions/actions?query=workflow%3ATest"><img src="https://img.shields.io/github/workflow/status/input-output-hk/cardano-transactions/Test?style=for-the-badge" /></a>
-  <a href="https://input-output-hk.github.io/cardano-transactions/coverage/hpc_index.html"><img src="https://input-output-hk.github.io/cardano-transactions/coverage/badge.svg" /></a>
-</p>
-
-## Overview
-
-This library provides a simple interface for building transactions on Cardano. It also
-provides a small command-line interface for playing around in a terminal.
-
-## Payment
+# Payment Transactions
 
 We call _Payment_ a simple UTxO transactions with no metadata, moving funds from a set of inputs to a set of outputs.
 
@@ -120,28 +104,3 @@ cardano-tx empty 764824073 \
   | cardano-tx sign-with e0860dab46f13e74ab834142e8877b80bf22044cae8ebab7a21ed1b8dc00c155f6b78eee2a5bbd453ce7e7711b2964abb6a36837e475271f18ff36ae5fc8af73e25db39fb78e74d4b53fb51776d0f5eb360e62d09b853f3a87ac25bf834ee1fb \
   | cardano-tx serialize
 ```
-
-## About Library Dependencies
-
-This library requires quite a few exotic dependencies from the cardano realm which aren't
-necessarily on hackage nor stackage. The dependencies are listed in [stack.yaml](https://github.com/input-output-hk/cardano-transactions/blob/master/stack.yaml#L7-L33),
-make sure to also include those for importing `cardano-transactions`.
-
-## Documentation
-
-API documentation is available [here](https://input-output-hk.github.io/cardano-transactions/haddock).
-
-[End-to-end example](https://github.com/input-output-hk/cardano-transactions/wiki/How-to-submit-transaction-via-cardano-tx-CLI) of constructing transaction via `cardano-tx` and then submitting it.
-
-## Contributing
-
-Pull requests are welcome.
-
-When creating a pull request, please make sure that your code adheres to our
-[coding standards](https://github.com/input-output-hk/adrestia/wiki/Coding-Standards).
-
-<hr/>
-
-<p align="center">
-  <a href="https://github.com/input-output-hk/cardano-transactions/blob/master/LICENSE"><img src="https://img.shields.io/github/license/input-output-hk/cardano-transactions.svg?style=for-the-badge" /></a>
-</p>
