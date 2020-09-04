@@ -51,13 +51,11 @@ fromBase16 = eitherToMaybe . convertFromBase Base16 . T.encodeUtf8
 toBase16 :: ByteString -> Text
 toBase16 = T.decodeUtf8 . convertToBase Base16
 
-
 -- | Convert a base58 encoded 'Text' into a raw 'ByteString'
 --
 -- @since 1.0.0
 fromBase58 :: Text -> Maybe ByteString
 fromBase58 = decodeBase58 bitcoinAlphabet . T.encodeUtf8
-
 
 -- | Convert a base64 encoded 'Text' into a raw 'ByteString'
 --

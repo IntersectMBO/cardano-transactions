@@ -269,7 +269,8 @@ mkOutput
 mkOutput coin bytes =
     Cardano.deserialiseFromRawBytes Cardano.AsShelleyAddress bytes >>= \case
         Cardano.ShelleyAddress _ (Ledger.ScriptHashObj _) _ -> Nothing
-        Cardano.ByronAddress _ -> Nothing
+        addr@(Cardano.ByronAddress _) ->
+            pure $ Cardano.TxOut addr (Cardano.Lovelace $ fromIntegral coin)
         addr@(Cardano.ShelleyAddress _ (Ledger.KeyHashObj _) _) ->
             pure $ Cardano.TxOut addr (Cardano.Lovelace $ fromIntegral coin)
 
@@ -308,7 +309,7 @@ mkShelleySignKey bytes
 --
 -- __example__:
 --
--- >>> let (Just addr) = frombase58 "DdzFFzCqrh...Dwg3SiaHiEL"
+-- >>> let (Just addr) = fromBase58 "DdzFFzCqrh...Dwg3SiaHiEL"
 -- >>> mkByronSignKey addr =<< fromBech32 "xprv13f0ve...nu4v4h875l"
 -- Just (SignKey ...)
 --
@@ -329,8 +330,8 @@ mkByronSignKey
         --
         -- See also: 'fromBase16'.
     -> Maybe (SignKey Shelley)
-mkByronSignKey bytes addr
-    | BS.length bytes /= 96 && BS.length addr /= 76 = Nothing
+mkByronSignKey addr bytes
+    | BS.length bytes /= 96 = Nothing
     | otherwise = do
         let (prv, cc) = BS.splitAt 64 bytes
         pub <- ed25519ScalarMult (BS.take 32 prv)
