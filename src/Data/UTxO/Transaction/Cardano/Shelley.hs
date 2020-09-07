@@ -25,9 +25,6 @@ module Data.UTxO.Transaction.Cardano.Shelley
 
     -- Internal
     , Shelley
-    , minUTxOvalue
-    , minFeeA
-    , minFeeB
     ) where
 
 
@@ -136,21 +133,16 @@ estimateFee nInps nOuts nShelleyWits nByronWits net =
           []
       dummyTx = Cardano.makeSignedTransaction [] initialSigData
 
+      -- Values to calculate fee : b + a*txsize
+      minFeeA = 44
+      minFeeB = 155381
+
 --
 -- MkPayment instance
 --
 
 -- Type-level constructor capturing types for 'Shelley'.
 data Shelley
-
--- Minimum possible value for each output
-minUTxOvalue :: Cardano.Lovelace
-minUTxOvalue = Cardano.Lovelace 1000000
-
--- Values to calculate fee : b + a*txsize
-minFeeA, minFeeB :: Natural
-minFeeA = 44
-minFeeB = 155381
 
 type ByronSigningKey = (ByteString, SigningKey)
 
@@ -185,9 +177,7 @@ instance MkPayment Shelley where
     lock :: CoinSel Shelley -> Tx Shelley
     lock (_net, _ttl, _fee, [], _outs) = Left MissingInput
     lock (_net, _ttl, _fee, _inps, []) = Left MissingOutput
-    lock (net, ttl, fee, inps, outs)
-        | any (\(TxOut _ coin) -> coin < minUTxOvalue) outs = Left TooLowOutput
-        | otherwise = Right (net, inps', outs', sigData, mempty)
+    lock (net, ttl, fee, inps, outs) = Right (net, inps', outs', sigData, mempty)
       where
         sigData = Cardano.makeShelleyTransaction
             TxExtraContent

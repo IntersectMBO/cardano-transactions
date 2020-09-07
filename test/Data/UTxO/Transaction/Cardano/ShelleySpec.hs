@@ -93,14 +93,6 @@ spec = do
                        & Tx.serialize
             result `shouldBe` Left MissingOutput
 
-        it "Too low output" $ do
-            let result = Tx.empty dummyInit
-                       & Tx.addInput (unsafeMkInput 0 (txids !! 0))
-                       & Tx.addOutput (unsafeMkOutput 14 (addrs !! 0))
-                       & Tx.lock
-                       & Tx.serialize
-            result `shouldBe` Left TooLowOutput
-
         it "Missing Signature" $ do
             let result = Tx.empty dummyInit
                        & Tx.addInput (unsafeMkInput 0 (txids !! 0))
