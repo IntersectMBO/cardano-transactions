@@ -15,6 +15,7 @@ module Data.UTxO.Transaction.Cardano.Shelley
     -- * Initialization
       mkInit
     , NetworkId (..)
+    , NetworkMagic (..)
 
    -- * Constructing Primitives
     , mkInput
@@ -29,7 +30,12 @@ module Data.UTxO.Transaction.Cardano.Shelley
 
 
 import Cardano.Api.Typed
-    ( NetworkId, TxExtraContent (..), TxIn (..), TxOut (..) )
+    ( NetworkId
+    , NetworkMagic (..)
+    , TxExtraContent (..)
+    , TxIn (..)
+    , TxOut (..)
+    )
 import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.Hash.Class
