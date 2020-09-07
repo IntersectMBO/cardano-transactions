@@ -118,6 +118,23 @@ spec = do
                 & Tx.lock
                 & Tx.signWith (uncurry unsafeMkByronSignKey (byronKeys !! 0))
                 & Tx.serialize
+        it "1 input, 1 output (DSL) - Shelley witnesses" $ do
+            let addr2 = BS.pack $ 1 : replicate 64 1
+            let addr3 = BS.pack $ 1 : replicate 64 2
+            let txId = BS.pack $ replicate 32 0
+            let amtInp = 10000000
+            let amtFee = 129700
+            let amtOut = 2000000
+            let amtChange = amtInp - amtOut - amtFee
+            let wit = BS.pack $ replicate 96 0
+
+            compareIntegrationTesting integrationTesting $ Tx.empty (mkInit Mainnet 7750 (fromIntegral amtFee))
+                & Tx.addInput (unsafeMkInput1 0 txId)
+                & Tx.addOutput (unsafeMkOutput1 amtOut addr2)
+                & Tx.addOutput (unsafeMkOutput1 amtChange addr3)
+                & Tx.lock
+                & Tx.signWith (unsafeMkShelleySignKey1 wit)
+                & Tx.serialize
 
 --
 -- Input for integration testing - probably temporary
@@ -162,6 +179,18 @@ integrationTesting__1_1_byron = unsafeB16
     \01a44025f79b7eae1cd697b3fb173f31110b97935c6ba6005822a101581e581\
     \c2af08478866f967927478999c5a7e904b22c68abaf73cabeb0e6c400f6"
 
+integrationTesting :: ByteString
+integrationTesting = unsafeB16
+    "83a400818258200000000000000000000000000000000000000000000000000000\
+    \000000000000000182825839010101010101010101010101010101010101010101\
+    \010101010101010101010101010101010101010101010101010101010101010101\
+    \0101011a001e848082583901020202020202020202020202020202020202020202\
+    \020202020202020202020202020202020202020202020202020202020202020202\
+    \02021a0078175c021a0001faa403191e46a1008182582001000000000000000000\
+    \000000000000000000000000000000000000000000005840d7af60ae33d2af3514\
+    \11c1445c79590526990bfa73cbb3732b54ef322daa142e6884023410f8be3c16e9\
+    \bd52076f2bb36bf38dfe034a9f04658e9f56197ab80ff6"
+
 --
 -- Internal
 --
@@ -199,6 +228,15 @@ unsafeBech32 = fromMaybe (error msg) . fromBech32
 unsafeBase58 :: Text -> ByteString
 unsafeBase58 = fromMaybe (error msg) . fromBase58
   where msg = "unable to decode base58 string."
+
+unsafeMkOutput1 :: Natural -> ByteString -> Output Shelley
+unsafeMkOutput1 n bytes = fromJust $ mkOutput n bytes
+
+unsafeMkShelleySignKey1 :: ByteString -> SignKey Shelley
+unsafeMkShelleySignKey1 bytes = fromJust $ mkShelleySignKey bytes
+
+unsafeMkInput1 :: Word32 -> ByteString -> Input Shelley
+unsafeMkInput1 ix bytes = fromJust $ mkInput ix bytes
 
 --
 -- Test Vectors

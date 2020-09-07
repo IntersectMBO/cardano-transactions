@@ -41,21 +41,19 @@ import Cardano.Crypto.ProtocolMagic
 import Cardano.Crypto.Signing
     ( SignTag (..), Signature, SigningKey (..), VerificationKey (..) )
 import Cardano.Crypto.Wallet
-    ( toXPub, xprv )
+    ( toXPub )
 import Codec.CBOR.Read
     ( deserialiseFromBytes )
 import Crypto.Hash
     ( Blake2b_256, digestFromByteString )
 import Data.ByteString
     ( ByteString )
-import Data.Either.Extra
-    ( eitherToMaybe )
 import Data.List.NonEmpty
     ( NonEmpty, nonEmpty )
 import Data.UTxO.Transaction
     ( ErrMkPayment (..), MkPayment (..) )
 import Data.UTxO.Transaction.Cardano.Helpers
-    ( ed25519ScalarMult )
+    ( xprvFromBytes )
 import Data.Word
     ( Word32 )
 import GHC.Exts
@@ -68,7 +66,6 @@ import qualified Cardano.Crypto.Signing as CC
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -164,12 +161,7 @@ mkSignKey
         --
         -- See also: 'fromBase16'.
     -> Maybe (SignKey Byron)
-mkSignKey bytes
-    | BS.length bytes /= 96 = Nothing
-    | otherwise = do
-        let (prv, cc) = BS.splitAt 64 bytes
-        pub <- ed25519ScalarMult (BS.take 32 prv)
-        fmap SigningKey $ eitherToMaybe $ xprv $ prv <> pub <> cc
+mkSignKey = fmap SigningKey . xprvFromBytes
 
 --
 -- MkPayment instance

@@ -15,9 +15,11 @@ module Data.UTxO.Transaction.Cardano.Helpers
 
     , toBase16
 
-    , ed25519ScalarMult
+    , xprvFromBytes
     ) where
 
+import Cardano.Crypto.Wallet
+    ( XPrv, xprv )
 import Crypto.Error
     ( eitherCryptoError )
 import Data.ByteArray.Encoding
@@ -33,6 +35,7 @@ import Data.Text
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Crypto.ECC.Edwards25519 as Ed25519
+import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as T
 
 --
@@ -71,7 +74,15 @@ fromBech32 txt = do
     (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient txt)
     Bech32.dataPartToBytes dp
 
-ed25519ScalarMult :: ByteString -> Maybe ByteString
-ed25519ScalarMult bs = do
-    scalar <- eitherToMaybe $ eitherCryptoError $ Ed25519.scalarDecodeLong bs
-    pure $ Ed25519.pointEncode $ Ed25519.toPoint scalar
+xprvFromBytes :: ByteString -> Maybe XPrv
+xprvFromBytes bytes
+    | BS.length bytes /= 96 = Nothing
+    | otherwise = do
+        let (prv, cc) = BS.splitAt 64 bytes
+        pub <- ed25519ScalarMult (BS.take 32 prv)
+        eitherToMaybe $ xprv $ prv <> pub <> cc
+  where
+      ed25519ScalarMult :: ByteString -> Maybe ByteString
+      ed25519ScalarMult bs = do
+          scalar <- eitherToMaybe $ eitherCryptoError $ Ed25519.scalarDecodeLong bs
+          pure $ Ed25519.pointEncode $ Ed25519.toPoint scalar

@@ -36,8 +36,6 @@ import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), hashWith )
 import Cardano.Crypto.Signing
     ( SigningKey (..) )
-import Cardano.Crypto.Wallet
-    ( xprv )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Control.Monad
@@ -53,7 +51,7 @@ import Data.Either.Extra
 import Data.UTxO.Transaction
     ( ErrMkPayment (..), MkPayment (..) )
 import Data.UTxO.Transaction.Cardano.Helpers
-    ( ed25519ScalarMult )
+    ( xprvFromBytes )
 import Data.Word
     ( Word32, Word64 )
 import GHC.Natural
@@ -181,8 +179,8 @@ instance MkPayment Shelley where
       where
         sigData = Cardano.makeShelleyTransaction
             TxExtraContent
-                { txMetadata = Nothing
-                , txWithdrawals = []
+                { txMetadata = Nothing -- TO DO: add metadata support
+                , txWithdrawals = [] -- TO DO: add withdrawal support
                 , txCertificates = []
                 , txUpdateProposal = Nothing
                 }
@@ -286,13 +284,9 @@ mkShelleySignKey
         --
         -- See also: 'fromBech32'.
     -> Maybe (SignKey Shelley)
-mkShelleySignKey bytes
-    | BS.length bytes /= 96 = Nothing
-    | otherwise = do
-          let (prv, cc) = BS.splitAt 64 bytes
-          pub <- ed25519ScalarMult (BS.take 32 prv)
-          fmap (Right . Cardano.WitnessPaymentExtendedKey . Cardano.PaymentExtendedSigningKey)
-              $ eitherToMaybe $ xprv $ prv <> pub <> cc
+mkShelleySignKey =
+    fmap (Right . Cardano.WitnessPaymentExtendedKey . Cardano.PaymentExtendedSigningKey)
+    . xprvFromBytes
 
 -- | Construct a 'SignKey' for /Shelley/ from primitive types.
 -- This is for Byron era keys.
@@ -320,12 +314,8 @@ mkByronSignKey
         --
         -- See also: 'fromBase16'.
     -> Maybe (SignKey Shelley)
-mkByronSignKey addr bytes
-    | BS.length bytes /= 96 = Nothing
-    | otherwise = do
-        let (prv, cc) = BS.splitAt 64 bytes
-        pub <- ed25519ScalarMult (BS.take 32 prv)
-        fmap (Left . (addr,) . SigningKey) $ eitherToMaybe $ xprv $ prv <> pub <> cc
+mkByronSignKey addr =
+    fmap (Left . (addr,) . SigningKey) . xprvFromBytes
 
 toHDPayloadAddress :: ByteString -> Maybe Byron.HDAddressPayload
 toHDPayloadAddress addr = do
