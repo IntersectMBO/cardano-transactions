@@ -22,7 +22,6 @@ module Data.UTxO.Transaction.Cardano.Shelley
     , mkOutput
     , mkShelleySignKey
     , mkByronSignKey
-    , estimateFee
 
     -- Internal
     , Shelley
@@ -60,8 +59,6 @@ import Data.UTxO.Transaction.Cardano.Helpers
     ( xprvFromBytes )
 import Data.Word
     ( Word32, Word64 )
-import GHC.Natural
-    ( naturalToInteger )
 import Numeric.Natural
     ( Natural )
 
@@ -89,57 +86,8 @@ mkInit
         -- ^ A ttl expressed in slot number counted from the beginning of blockchain
     -> Word64
         -- ^ fee of tx as taken when constructing change outputs
-        -- see also estimateFee
     -> Init Shelley
 mkInit net ttl fee = (net, SlotNo ttl, Cardano.Lovelace $ fromIntegral fee)
-
--- | Estimate a payment fee for /Shelley/ ttransaction using the number of
--- inputs and outputs and the sorts of witnesses. Please, notice that this
--- method overetimates the minimum acceptable fees.
---
--- __examples__:
---
--- >>> estimateFee 1 2 1 0 Cardano.Mainnet
--- Lovelace 168097
---
--- >>> estimateFee 1 2 1 0 (Cardano.Testnet (Cardano.NetworkMagic 12345))
--- Lovelace 168097
---
--- estimateFee 1 2 0 1 Cardano.Mainnet
--- Lovelace 169725
--- @since 2.0.0
-estimateFee
-    :: Int
-        -- ^ Number of inputs in tx
-    -> Int
-        -- ^ Number of outputs in tx
-    -> Int
-        -- ^ Number of Shelley witnesses in tx
-    -> Int
-        -- ^ Number of Byron witnesses in tx
-    -> NetworkId
-        -- ^ Network id
-    -> Cardano.Lovelace
-estimateFee nInps nOuts nShelleyWits nByronWits net =
-    Cardano.estimateTransactionFee net minFeeB minFeeA dummyTx nInps nOuts nShelleyWits nByronWits
-  where
-      ttl = SlotNo 10000
-      initialSigData = Cardano.makeShelleyTransaction
-          TxExtraContent
-          { txMetadata = Nothing
-          , txWithdrawals = []
-          , txCertificates = []
-          , txUpdateProposal = Nothing
-          }
-          ttl
-          (Cardano.Lovelace $ naturalToInteger minFeeB)
-          []
-          []
-      dummyTx = Cardano.makeSignedTransaction [] initialSigData
-
-      -- Values to calculate fee : b + a*txsize
-      minFeeA = 44
-      minFeeB = 155381
 
 --
 -- MkPayment instance
