@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{-# OPTIONS_HADDOCK hidden #-}
+{-# OPTIONS_HADDOCK hide #-}
 
 module Cardano.Crypto.Extra
     ( xprvFromBytes

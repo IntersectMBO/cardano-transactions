@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 31e87407b5927922e3e7c54dcba683d6f74c24273c9d3d629605722c661c5e5e
+-- hash: 6b140374fc157da9ecc1ab8f8062a32ea98994e9035ccc01ad707460f80e43bf
 
 name:           cardano-transactions
 version:        1.0.0
@@ -31,6 +31,7 @@ flag release
 
 library
   exposed-modules:
+      Cardano.Address.Byron
       Cardano.Crypto.Extra
       Codec.Binary.Encoding
       Data.UTxO.Transaction

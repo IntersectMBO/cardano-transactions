@@ -1,33 +1,39 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_HADDOCK prune #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-} -- needed for {#- HLINT ... #-}
 
 module Data.UTxO.Transaction.Cardano.Shelley
     (
     -- * Initialization
       mkInit
+
+    -- * Types
     , NetworkId (..)
     , NetworkMagic (..)
+    , Fee (..)
+    , AddrAttributes
 
    -- * Constructing Primitives
     , mkInput
     , mkOutput
     , mkShelleySignKey
     , mkByronSignKey
+    , mkAddrAttributes
 
     -- Internal
     , Shelley
     ) where
 
 
+import Cardano.Address.Byron
+    ( AddrAttributes, Address (..), getAddrAttributes, mkAttributes )
 import Cardano.Api.Typed
     ( NetworkId
     , NetworkMagic (..)
@@ -45,31 +51,33 @@ import Cardano.Crypto.Signing
     ( SigningKey (..) )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
-import Control.Monad
-    ( replicateM )
-import Control.Monad.Fail
-    ( MonadFail )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Short
     ( toShort )
-import Data.Either.Extra
-    ( eitherToMaybe )
 import Data.UTxO.Transaction
     ( ErrMkPayment (..), MkPayment (..) )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32 )
 import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Api.Typed as Cardano
-import qualified Cardano.Chain.Common as Byron
-import qualified Codec.CBOR.Decoding as CBOR
-import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BL
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as Ledger
 import qualified Shelley.Spec.Ledger.Credential as Ledger
+
+
+-- | A type isomorphic to 'Integer' to represent fees.
+newtype Fee = Fee { unFee :: Integer }
+    deriving (Show, Eq, Num)
+
+-- | A type to capture signing keys in Shelley. In order to produce Byron
+-- witnesses, one needs to include extra information that are present in the
+-- source input address.
+data CardanoSigningKey
+    = ShelleySigningKey Cardano.ShelleyWitnessSigningKey
+    | ByronSigningKey AddrAttributes SigningKey
 
 -- | Construct a payment 'Init' for /Shelley/ from primitive types.
 --
@@ -82,93 +90,12 @@ import qualified Shelley.Spec.Ledger.Credential as Ledger
 mkInit
     :: NetworkId
         -- ^ A network tag, Mainnet or Testnet with NetworkMagic specified
-    -> Word64
+    -> SlotNo
         -- ^ A ttl expressed in slot number counted from the beginning of blockchain
-    -> Word64
+    -> Fee
         -- ^ fee of tx as taken when constructing change outputs
     -> Init Shelley
-mkInit net ttl fee = (net, SlotNo ttl, Cardano.Lovelace $ fromIntegral fee)
-
---
--- MkPayment instance
---
-
--- Type-level constructor capturing types for 'Shelley'.
-data Shelley
-
-type ByronSigningKey = (ByteString, SigningKey)
-
-instance MkPayment Shelley where
-    type Init Shelley = (NetworkId, SlotNo, Cardano.Lovelace)
-
-    type Input   Shelley = TxIn
-    type Output  Shelley = TxOut Cardano.Shelley
-    type SignKey Shelley = Either ByronSigningKey Cardano.ShelleyWitnessSigningKey
-
-    type CoinSel Shelley =
-        (NetworkId, SlotNo, Cardano.Lovelace, [TxIn], [TxOut Cardano.Shelley])
-
-    type Tx Shelley = Either
-        ErrMkPayment
-        ( NetworkId
-        , [TxIn]
-        , [TxOut Cardano.Shelley]
-        , Cardano.TxBody Cardano.Shelley
-        , [Cardano.Witness Cardano.Shelley]
-        )
-
-    empty :: Init Shelley -> CoinSel Shelley
-    empty (net, ttl, fee) = (net, ttl, fee, mempty, mempty)
-
-    addInput :: TxIn -> CoinSel Shelley -> CoinSel Shelley
-    addInput inp (pm, ttl, fee, inps, outs) = (pm, ttl, fee, inp : inps, outs)
-
-    addOutput :: TxOut Cardano.Shelley -> CoinSel Shelley -> CoinSel Shelley
-    addOutput out (pm, ttl, fee, inps, outs) = (pm, ttl, fee, inps, out : outs)
-
-    lock :: CoinSel Shelley -> Tx Shelley
-    lock (_net, _ttl, _fee, [], _outs) = Left MissingInput
-    lock (_net, _ttl, _fee, _inps, []) = Left MissingOutput
-    lock (net, ttl, fee, inps, outs) = Right (net, inps', outs', sigData, mempty)
-      where
-        sigData = Cardano.makeShelleyTransaction
-            TxExtraContent
-                { txMetadata = Nothing -- TO DO: add metadata support
-                , txWithdrawals = [] -- TO DO: add withdrawal support
-                , txCertificates = []
-                , txUpdateProposal = Nothing
-                }
-            ttl
-            fee
-            inps'
-            outs'
-        inps'  = reverse inps
-        outs'  = reverse outs
-
-    signWith :: SignKey Shelley -> Tx Shelley -> Tx Shelley
-    signWith _ (Left e) = Left e
-    signWith (Right signingKey) (Right (net, inps, outs, sigData, wits)) =
-        Right (net, inps, outs, sigData, shelleyWit : wits)
-      where
-        shelleyWit = Cardano.makeShelleyKeyWitness sigData signingKey
-    signWith (Left (addr, signingKey)) (Right (net, inps, outs, sigData, wits)) =
-        Right (net, inps, outs, sigData, byronWit : wits)
-      where
-        byronWit = Cardano.ShelleyBootstrapWitness $
-            Ledger.makeBootstrapWitness txHash signingKey addrAttr
-        (Cardano.ShelleyTxBody body _) = sigData
-        txHash = hashWith serialize' body
-        addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
-            (toHDPayloadAddress addr)
-            (Cardano.toByronNetworkMagic net)
-
-    serialize :: Tx Shelley -> Either ErrMkPayment ByteString
-    serialize (Left e) = Left e
-    serialize (Right (_net, inps, _outs, sigData, wits))
-        | length inps /= length wits = Left MissingSignature
-        | otherwise = Right $ Cardano.serialiseToCBOR tx
-      where
-        tx = Cardano.makeSignedTransaction wits sigData
+mkInit net ttl fee = (net, ttl, fee)
 
 -- | Construct a payment 'Input' for /Shelley/ from primitive types.
 --
@@ -238,9 +165,11 @@ mkShelleySignKey
         --
         -- See also: 'fromBech32'.
     -> Maybe (SignKey Shelley)
-mkShelleySignKey =
-    fmap (Right . Cardano.WitnessPaymentExtendedKey . Cardano.PaymentExtendedSigningKey)
-    . xprvFromBytes
+mkShelleySignKey = fmap
+    ( ShelleySigningKey
+    . Cardano.WitnessPaymentExtendedKey
+    . Cardano.PaymentExtendedSigningKey
+    ) . xprvFromBytes
 
 -- | Construct a 'SignKey' for /Shelley/ from primitive types.
 -- This is for Byron era keys.
@@ -253,9 +182,9 @@ mkShelleySignKey =
 --
 -- @since 2.0.0
 mkByronSignKey
-    :: ByteString
-        -- ^ Address derived from extended private key below
-        -- See also: 'fromBase58'.
+    :: AddrAttributes
+        -- ^ Address attributes, obtained from a Byron address.
+        -- See also: 'mkAddrAttributes'
     -> ByteString
         -- ^ A extended address private key and its chain code.
         -- The key __must be 96 bytes__ long, internally made of two concatenated parts:
@@ -268,54 +197,101 @@ mkByronSignKey
         --
         -- See also: 'fromBase16'.
     -> Maybe (SignKey Shelley)
-mkByronSignKey addr =
-    fmap (Left . (addr,) . SigningKey) . xprvFromBytes
+mkByronSignKey addrAttrs = do
+    fmap (ByronSigningKey addrAttrs . SigningKey) . xprvFromBytes
 
-toHDPayloadAddress :: ByteString -> Maybe Byron.HDAddressPayload
-toHDPayloadAddress addr = do
-    payload <- deserialiseCbor decodeAddressPayload addr
-    attributes <- deserialiseCbor decodeAllAttributes' payload
-    case filter (\(tag,_) -> tag == 1) attributes of
-        [(1, bytes)] ->
-            Byron.HDAddressPayload <$> decodeNestedBytes CBOR.decodeBytes bytes
-        _ ->
-            Nothing
-  where
-    decodeAllAttributes' = do
-        _ <- CBOR.decodeListLenCanonicalOf 3
-        _ <- CBOR.decodeBytes
-        decodeAllAttributes
+-- | Extract address attributes from an address, if they exists (i.e. if the
+-- address is a bootstrap / Byron address).
+--
+-- __example__:
+--
+-- >>> let (Just addr) = fromBase58 "DdzFFzCqrh...Dwg3SiaHiEL"
+-- >>> mkAddrAttributes addr
+-- Just (AddrAttributes ...)
+--
+-- @since 2.0.0
+mkAddrAttributes
+    :: ByteString
+        -- ^ A Byron address, as a raw 'ByteString'.
+    -> Maybe AddrAttributes
+mkAddrAttributes =
+    getAddrAttributes . Address
 
-    decodeAllAttributes = do
-        n <- CBOR.decodeMapLenCanonical -- Address Attributes length
-        replicateM n decodeAttr
+--
+-- MkPayment instance
+--
+
+-- Type-level constructor capturing types for 'Shelley'.
+data Shelley
+
+instance MkPayment Shelley where
+    type Init Shelley = (NetworkId, SlotNo, Fee)
+
+    type Input   Shelley = TxIn
+    type Output  Shelley = TxOut Cardano.Shelley
+    type SignKey Shelley = CardanoSigningKey
+
+    type CoinSel Shelley =
+        (NetworkId, SlotNo, Fee, [TxIn], [TxOut Cardano.Shelley])
+
+    type Tx Shelley = Either
+        ErrMkPayment
+        ( NetworkId
+        , [TxIn]
+        , [TxOut Cardano.Shelley]
+        , Cardano.TxBody Cardano.Shelley
+        , [Cardano.Witness Cardano.Shelley]
+        )
+
+    empty :: Init Shelley -> CoinSel Shelley
+    empty (net, ttl, fee) = (net, ttl, fee, mempty, mempty)
+
+    addInput :: TxIn -> CoinSel Shelley -> CoinSel Shelley
+    addInput inp (pm, ttl, fee, inps, outs) = (pm, ttl, fee, inp : inps, outs)
+
+    addOutput :: TxOut Cardano.Shelley -> CoinSel Shelley -> CoinSel Shelley
+    addOutput out (pm, ttl, fee, inps, outs) = (pm, ttl, fee, inps, out : outs)
+
+    lock :: CoinSel Shelley -> Tx Shelley
+    lock (_net, _ttl, _fee, [], _outs) = Left MissingInput
+    lock (_net, _ttl, _fee, _inps, []) = Left MissingOutput
+    lock (net, ttl, fee, inps, outs) = Right (net, inps', outs', sigData, mempty)
       where
-        decodeAttr = (,) <$> CBOR.decodeWord8 <*> CBOR.decodeBytes
+        inps'   = reverse inps
+        outs'   = reverse outs
+        sigData = Cardano.makeShelleyTransaction
+            TxExtraContent
+                { txMetadata = Nothing -- TO DO: add metadata support
+                , txWithdrawals = [] -- TO DO: add withdrawal support
+                , txCertificates = []
+                , txUpdateProposal = Nothing
+                }
+            ttl
+            (Cardano.Lovelace $ unFee fee)
+            inps'
+            outs'
 
-    decodeAddressPayload = do
-        _ <- CBOR.decodeListLenCanonicalOf 2
-        _ <- CBOR.decodeTag
-        bytes <- CBOR.decodeBytes
-        _ <- CBOR.decodeWord32 -- CRC
-        return bytes
+    signWith :: SignKey Shelley -> Tx Shelley -> Tx Shelley
+    signWith _ (Left e) = Left e
 
-    decodeNestedBytes
-        :: MonadFail m
-        => (forall s. CBOR.Decoder s r)
-        -> ByteString
-        -> m r
-    decodeNestedBytes dec bytes =
-        case CBOR.deserialiseFromBytes dec (BL.fromStrict bytes) of
-            Right ("", res) ->
-                pure res
-            Right _ ->
-                fail "Leftovers when decoding nested bytes"
-            _ ->
-                fail "Could not decode nested bytes"
+    signWith (ShelleySigningKey skey) (Right (net, inps, outs, sigData, wits)) =
+        Right (net, inps, outs, sigData, shelleyWit : wits)
+      where
+        shelleyWit = Cardano.makeShelleyKeyWitness sigData skey
 
-    deserialiseCbor
-        :: (forall s. CBOR.Decoder s a)
-        -> ByteString
-        -> Maybe a
-    deserialiseCbor dec =
-        fmap snd . eitherToMaybe . CBOR.deserialiseFromBytes dec . BL.fromStrict
+    signWith (ByronSigningKey addrAttrs skey) (Right (net, inps, outs, sigData, wits)) =
+        Right (net, inps, outs, sigData, byronWit : wits)
+      where
+        byronWit = Cardano.ShelleyBootstrapWitness $
+            Ledger.makeBootstrapWitness txHash skey attrs
+        (Cardano.ShelleyTxBody body _) = sigData
+        txHash = hashWith serialize' body
+        attrs  = mkAttributes addrAttrs
+
+    serialize :: Tx Shelley -> Either ErrMkPayment ByteString
+    serialize (Left e) = Left e
+    serialize (Right (_net, inps, _outs, sigData, wits))
+        | length inps /= length wits = Left MissingSignature
+        | otherwise = Right $ Cardano.serialiseToCBOR tx
+      where
+        tx = Cardano.makeSignedTransaction wits sigData
