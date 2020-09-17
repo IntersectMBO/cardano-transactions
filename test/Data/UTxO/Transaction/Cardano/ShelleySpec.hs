@@ -11,6 +11,8 @@ module Data.UTxO.Transaction.Cardano.ShelleySpec
 
 import Prelude
 
+import Codec.Binary.Encoding
+    ( fromBase16, fromBech32 )
 import Data.ByteString
     ( ByteString )
 import Data.Function
@@ -21,8 +23,6 @@ import Data.Text
     ( Text )
 import Data.UTxO.Transaction
     ( ErrMkPayment (..), MkPayment (..) )
-import Data.UTxO.Transaction.Cardano.Helpers
-    ( fromBase16, fromBech32 )
 import Data.UTxO.Transaction.Cardano.Shelley
     ( NetworkId (..)
     , NetworkMagic (..)

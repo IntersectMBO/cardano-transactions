@@ -37,6 +37,8 @@ import Cardano.Api.Typed
     )
 import Cardano.Binary
     ( serialize' )
+import Cardano.Crypto.Extra
+    ( xprvFromBytes )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), hashWith )
 import Cardano.Crypto.Signing
@@ -55,8 +57,6 @@ import Data.Either.Extra
     ( eitherToMaybe )
 import Data.UTxO.Transaction
     ( ErrMkPayment (..), MkPayment (..) )
-import Data.UTxO.Transaction.Cardano.Helpers
-    ( xprvFromBytes )
 import Data.Word
     ( Word32, Word64 )
 import Numeric.Natural

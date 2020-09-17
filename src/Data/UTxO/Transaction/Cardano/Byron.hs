@@ -34,6 +34,8 @@ import Cardano.Chain.Common
     ( mkAttributes, mkLovelace )
 import Cardano.Chain.UTxO
     ( TxIn (..), TxInWitness (..), TxOut (..), TxSigData (..), mkTxAux )
+import Cardano.Crypto.Extra
+    ( xprvFromBytes )
 import Cardano.Crypto.Hashing
     ( abstractHashFromDigest, serializeCborHash )
 import Cardano.Crypto.ProtocolMagic
@@ -52,8 +54,6 @@ import Data.List.NonEmpty
     ( NonEmpty, nonEmpty )
 import Data.UTxO.Transaction
     ( ErrMkPayment (..), MkPayment (..) )
-import Data.UTxO.Transaction.Cardano.Helpers
-    ( xprvFromBytes )
 import Data.Word
     ( Word32 )
 import GHC.Exts
