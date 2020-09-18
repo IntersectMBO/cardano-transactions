@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.2.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bb07e37f882f89fbc02bca7bc78436aaa4ecca901ec7cd41b52577641ebd852d
+-- hash: 6b140374fc157da9ecc1ab8f8062a32ea98994e9035ccc01ad707460f80e43bf
 
 name:           cardano-transactions
 version:        1.0.0
@@ -31,8 +31,12 @@ flag release
 
 library
   exposed-modules:
+      Cardano.Address.Byron
+      Cardano.Crypto.Extra
+      Codec.Binary.Encoding
       Data.UTxO.Transaction
       Data.UTxO.Transaction.Cardano.Byron
+      Data.UTxO.Transaction.Cardano.Shelley
   other-modules:
       Paths_cardano_transactions
   hs-source-dirs:
@@ -41,15 +45,21 @@ library
   build-depends:
       base >=4.7 && <5
     , base58-bytestring
+    , bech32
     , bytestring
+    , cardano-api
     , cardano-binary
     , cardano-crypto
+    , cardano-crypto-class
     , cardano-crypto-wrapper
     , cardano-ledger
+    , cardano-slotting
     , cborg
     , cryptonite
     , extra
     , memory
+    , ouroboros-consensus-shelley
+    , shelley-spec-ledger
     , text
   if flag(release)
     ghc-options: -Werror
@@ -82,6 +92,7 @@ test-suite unit
   main-is: Main.hs
   other-modules:
       Data.UTxO.Transaction.Cardano.ByronSpec
+      Data.UTxO.Transaction.Cardano.ShelleySpec
       Paths_cardano_transactions
   hs-source-dirs:
       test

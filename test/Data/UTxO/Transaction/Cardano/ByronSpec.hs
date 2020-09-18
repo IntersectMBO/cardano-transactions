@@ -16,6 +16,8 @@ import Cardano.Chain.UTxO
     ( TxIn (..), TxInWitness (..), TxOut (..), TxSigData (..) )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId (..) )
+import Codec.Binary.Encoding
+    ( fromBase16, fromBase58, fromBase64 )
 import Control.Monad
     ( foldM )
 import Data.ByteString
@@ -36,9 +38,6 @@ import Data.UTxO.Transaction.Cardano.Byron
     , decodeTx
     , encodeCoinSel
     , encodeTx
-    , fromBase16
-    , fromBase58
-    , fromBase64
     , mainnetMagic
     , mkInit
     , mkInput

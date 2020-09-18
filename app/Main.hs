@@ -8,6 +8,8 @@ module Main where
 
 import Prelude
 
+import Codec.Binary.Encoding
+    ( fromBase16, fromBase58 )
 import Control.Applicative
     ( (<|>) )
 import Control.Exception
@@ -30,8 +32,6 @@ import Data.UTxO.Transaction.Cardano.Byron
     , decodeTx
     , encodeCoinSel
     , encodeTx
-    , fromBase16
-    , fromBase58
     , mkInit
     , mkInput
     , mkOutput

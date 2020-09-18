@@ -28,15 +28,21 @@ library:
   - -fwarn-redundant-constraints
   dependencies:
   - base58-bytestring
+  - bech32
   - bytestring
+  - cardano-api
+  - cardano-slotting
   - cardano-binary
   - cardano-crypto
+  - cardano-crypto-class
   - cardano-crypto-wrapper
   - cardano-ledger
   - cborg
   - cryptonite
   - extra
   - memory
+  - ouroboros-consensus-shelley
+  - shelley-spec-ledger
   - text
   when:
   - condition: flag(release)

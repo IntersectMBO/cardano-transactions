@@ -20,11 +20,6 @@ module Data.UTxO.Transaction.Cardano.Byron
     , mkOutput
     , mkSignKey
 
-    -- * Converting From Bases
-    , fromBase16
-    , fromBase58
-    , fromBase64
-
     -- Internal
     , Byron
     , encodeCoinSel
@@ -39,6 +34,8 @@ import Cardano.Chain.Common
     ( mkAttributes, mkLovelace )
 import Cardano.Chain.UTxO
     ( TxIn (..), TxInWitness (..), TxOut (..), TxSigData (..), mkTxAux )
+import Cardano.Crypto.Extra
+    ( xprvFromBytes )
 import Cardano.Crypto.Hashing
     ( abstractHashFromDigest, serializeCborHash )
 import Cardano.Crypto.ProtocolMagic
@@ -46,25 +43,15 @@ import Cardano.Crypto.ProtocolMagic
 import Cardano.Crypto.Signing
     ( SignTag (..), Signature, SigningKey (..), VerificationKey (..) )
 import Cardano.Crypto.Wallet
-    ( toXPub, xprv )
+    ( toXPub )
 import Codec.CBOR.Read
     ( deserialiseFromBytes )
-import Crypto.Error
-    ( eitherCryptoError )
 import Crypto.Hash
     ( Blake2b_256, digestFromByteString )
-import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase )
 import Data.ByteString
     ( ByteString )
-import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58 )
-import Data.Either.Extra
-    ( eitherToMaybe )
 import Data.List.NonEmpty
     ( NonEmpty, nonEmpty )
-import Data.Text
-    ( Text )
 import Data.UTxO.Transaction
     ( ErrMkPayment (..), MkPayment (..) )
 import Data.Word
@@ -79,12 +66,9 @@ import qualified Cardano.Crypto.Signing as CC
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.ECC.Edwards25519 as Ed25519
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 
 -- | Construct a payment 'Init' for /Byron/ from primitive types.
 --
@@ -177,40 +161,7 @@ mkSignKey
         --
         -- See also: 'fromBase16'.
     -> Maybe (SignKey Byron)
-mkSignKey bytes
-    | BS.length bytes /= 96 = Nothing
-    | otherwise = do
-        let (prv, cc) = BS.splitAt 64 bytes
-        pub <- ed25519ScalarMult (BS.take 32 prv)
-        fmap SigningKey $ eitherToMaybe $ xprv $ prv <> pub <> cc
-  where
-    ed25519ScalarMult :: ByteString -> Maybe ByteString
-    ed25519ScalarMult bs = do
-        scalar <- eitherToMaybe $ eitherCryptoError $ Ed25519.scalarDecodeLong bs
-        pure $ Ed25519.pointEncode $ Ed25519.toPoint scalar
-
---
--- ByteString Decoding
---
-
--- | Convert a base16 encoded 'Text' into a raw 'ByteString'
---
--- @since 1.0.0
-fromBase16 :: Text -> Maybe ByteString
-fromBase16 = eitherToMaybe . convertFromBase Base16 . T.encodeUtf8
-
--- | Convert a base58 encoded 'Text' into a raw 'ByteString'
---
--- @since 1.0.0
-fromBase58 :: Text -> Maybe ByteString
-fromBase58 = decodeBase58 bitcoinAlphabet . T.encodeUtf8
-
-
--- | Convert a base64 encoded 'Text' into a raw 'ByteString'
---
--- @since 1.0.0
-fromBase64 :: Text -> Maybe ByteString
-fromBase64 = eitherToMaybe . convertFromBase Base64 . T.encodeUtf8
+mkSignKey = fmap SigningKey . xprvFromBytes
 
 --
 -- MkPayment instance

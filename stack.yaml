@@ -1,4 +1,4 @@
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/633f6141c3e7211dbb0c6ae6ad50d4976313e190/snapshots/cardano-1.14.2.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/da70d67ff662b85e72e1f203defbf5e3028d03cd/snapshots/cardano-1.19.1.yaml
 
 # Generate files required by Weeder.
 # See https://github.com/ndmitchell/weeder/issues/53
@@ -7,11 +7,10 @@ ghc-options: {"$locals": -ddump-to-file -ddump-hi}
 packages:
 - .
 
-extra-deps:
-  - hedgehog-quickcheck-0.1.1
-
 flags:
   # Bundle VRF crypto in libsodium and do not rely on an external fork to have it.
   # This still requires the host system to have the 'standard' libsodium installed.
   cardano-crypto-praos:
     external-libsodium-vrf: false
+  cardano-config:
+    systemd: false
