@@ -9,6 +9,33 @@
 @package cardano-transactions
 @version 1.0.0
 
+module Codec.Binary.Encoding
+
+-- | Convert a base16 encoded <a>Text</a> into a raw <a>ByteString</a>
+fromBase16 :: Text -> Maybe ByteString
+
+-- | Convert a Bech32 encoded <a>Text</a> into a raw <a>ByteString</a>
+fromBech32 :: Text -> Maybe ByteString
+
+-- | Convert a base58 encoded <a>Text</a> into a raw <a>ByteString</a>
+fromBase58 :: Text -> Maybe ByteString
+
+-- | Convert a base64 encoded <a>Text</a> into a raw <a>ByteString</a>
+fromBase64 :: Text -> Maybe ByteString
+
+-- | Convert a raw <a>ByteString</a> into base16 encoded <a>Text</a>
+base16 :: ByteString -> Text
+
+-- | Convert a raw <a>ByteString</a> into a bech32 encoded <a>Text</a>
+bech32 :: HumanReadablePart -> ByteString -> Text
+
+-- | Convert a raw <a>ByteString</a> into a base58 encoded <a>Text</a>
+base58 :: ByteString -> Text
+
+-- | Convert a raw <a>ByteString</a> into a base64 encoded <a>Text</a>,
+--   with padding.
+base64 :: ByteString -> Text
+
 module Data.UTxO.Transaction
 
 -- | Abstract interface for constructing a <i>Payment</i>.
@@ -119,13 +146,90 @@ mkOutput :: Natural -> ByteString -> Maybe (Output Byron)
 --   Just (SignKey ...)
 --   </pre>
 mkSignKey :: ByteString -> Maybe (SignKey Byron)
-
--- | Convert a base16 encoded <a>Text</a> into a raw <a>ByteString</a>
-fromBase16 :: Text -> Maybe ByteString
-
--- | Convert a base58 encoded <a>Text</a> into a raw <a>ByteString</a>
-fromBase58 :: Text -> Maybe ByteString
-
--- | Convert a base64 encoded <a>Text</a> into a raw <a>ByteString</a>
-fromBase64 :: Text -> Maybe ByteString
 instance Data.UTxO.Transaction.MkPayment Data.UTxO.Transaction.Cardano.Byron.Byron
+
+module Data.UTxO.Transaction.Cardano.Shelley
+
+-- | Construct a payment <a>Init</a> for <i>Shelley</i> from primitive
+--   types.
+--   
+--   <b>examples</b>:
+--   
+--   <pre>
+--   &gt;&gt;&gt; mkInit Mainnet 430000
+--   
+--   &gt;&gt;&gt; mkInit (Testnet (NetworkMagic 1234)) 430000
+--   </pre>
+mkInit :: NetworkId -> SlotNo -> Fee -> Init Shelley
+
+-- | A type isomorphic to <a>Integer</a> to represent fees.
+newtype Fee
+Fee :: Integer -> Fee
+[unFee] :: Fee -> Integer
+
+-- | Construct a payment <a>Input</a> for <i>Shelley</i> from primitive
+--   types.
+--   
+--   <b>example</b>:
+--   
+--   <pre>
+--   &gt;&gt;&gt; mkInput 14 =&lt;&lt; fromBase16 "3b402651...aad1c0b7"
+--   Just (Input ...)
+--   </pre>
+mkInput :: Word32 -> ByteString -> Maybe (Input Shelley)
+
+-- | Construct a payment <a>Output</a> for <i>Shelley</i> from primitive
+--   types.
+--   
+--   <b>example</b>:
+--   
+--   <pre>
+--   &gt;&gt;&gt; mkOutput 42 =&lt;&lt; fromBase58 "Ae2tdPwU...DnXy319f"
+--   
+--   &gt;&gt;&gt; mkOutput 42 =&lt;&lt; fromBech32 "addr1sjc...6s3xvu5g"
+--   
+--   &gt;&gt;&gt; mkOutput 42 =&lt;&lt; fromBase16 "42bf330c...ba5b947e"
+--   Just (Output ...)
+--   </pre>
+mkOutput :: Natural -> ByteString -> Maybe (Output Shelley)
+
+-- | Construct a <a>SignKey</a> for <i>Shelley</i> from primitive types.
+--   This is for Shelley era keys.
+--   
+--   <b>example</b>:
+--   
+--   <pre>
+--   &gt;&gt;&gt; mkShelleySignKey =&lt;&lt; fromBech32 "xprv13f0ve...nu4v4h875l"
+--   Just (SignKey ...)
+--   </pre>
+mkShelleySignKey :: ByteString -> Maybe (SignKey Shelley)
+
+-- | Construct a <a>SignKey</a> for <i>Shelley</i> from primitive types.
+--   This is for Byron era keys.
+--   
+--   <b>example</b>:
+--   
+--   <pre>
+--   &gt;&gt;&gt; let (Just addr) = fromBase58 "DdzFFzCqrh...Dwg3SiaHiEL"
+--   
+--   &gt;&gt;&gt; mkByronSignKey addr =&lt;&lt; fromBech32 "xprv13f0ve...nu4v4h875l"
+--   Just (SignKey ...)
+--   </pre>
+mkByronSignKey :: AddrAttributes -> ByteString -> Maybe (SignKey Shelley)
+
+-- | Extract address attributes from an address, if they exists (i.e. if
+--   the address is a bootstrap / Byron address).
+--   
+--   <b>example</b>:
+--   
+--   <pre>
+--   &gt;&gt;&gt; let (Just addr) = fromBase58 "DdzFFzCqrh...Dwg3SiaHiEL"
+--   
+--   &gt;&gt;&gt; mkAddrAttributes addr
+--   Just (AddrAttributes ...)
+--   </pre>
+mkAddrAttributes :: ByteString -> Maybe AddrAttributes
+instance GHC.Num.Num Data.UTxO.Transaction.Cardano.Shelley.Fee
+instance GHC.Classes.Eq Data.UTxO.Transaction.Cardano.Shelley.Fee
+instance GHC.Show.Show Data.UTxO.Transaction.Cardano.Shelley.Fee
+instance Data.UTxO.Transaction.MkPayment Data.UTxO.Transaction.Cardano.Shelley.Shelley

@@ -1,0 +1,108 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style type="text/css">
+span.lineno { color: white; background: #aaaaaa; border-right: solid white 12px }
+span.nottickedoff { background: yellow}
+span.istickedoff { background: white }
+span.tickonlyfalse { margin: -1px; border: 1px solid #f20913; background: #f20913 }
+span.tickonlytrue  { margin: -1px; border: 1px solid #60de51; background: #60de51 }
+span.funcount { font-size: small; color: orange; z-index: 2; position: absolute; right: 20 }
+span.decl { font-weight: bold }
+span.spaces    { background: white }
+</style>
+</head>
+<body>
+<pre>
+<span class="decl"><span class="nottickedoff">never executed</span> <span class="tickonlytrue">always true</span> <span class="tickonlyfalse">always false</span></span>
+</pre>
+<pre>
+<span class="lineno">    1 </span>{-# LANGUAGE DataKinds #-}
+<span class="lineno">    2 </span>{-# LANGUAGE ScopedTypeVariables #-}
+<span class="lineno">    3 </span>{-# LANGUAGE TypeFamilies #-}
+<span class="lineno">    4 </span>
+<span class="lineno">    5 </span>{-# OPTIONS_HADDOCK prune #-}
+<span class="lineno">    6 </span>
+<span class="lineno">    7 </span>module Codec.Binary.Encoding
+<span class="lineno">    8 </span>    (
+<span class="lineno">    9 </span>    -- * Converting From Bases
+<span class="lineno">   10 </span>      fromBase16
+<span class="lineno">   11 </span>    , fromBech32
+<span class="lineno">   12 </span>    , fromBase58
+<span class="lineno">   13 </span>    , fromBase64
+<span class="lineno">   14 </span>
+<span class="lineno">   15 </span>    -- * Conversion To Bases
+<span class="lineno">   16 </span>    , base16
+<span class="lineno">   17 </span>    , bech32
+<span class="lineno">   18 </span>    , base58
+<span class="lineno">   19 </span>    , base64
+<span class="lineno">   20 </span>    ) where
+<span class="lineno">   21 </span>
+<span class="lineno">   22 </span>import Codec.Binary.Bech32
+<span class="lineno">   23 </span>    ( HumanReadablePart )
+<span class="lineno">   24 </span>import Data.ByteArray.Encoding
+<span class="lineno">   25 </span>    ( Base (..), convertFromBase, convertToBase )
+<span class="lineno">   26 </span>import Data.ByteString
+<span class="lineno">   27 </span>    ( ByteString )
+<span class="lineno">   28 </span>import Data.ByteString.Base58
+<span class="lineno">   29 </span>    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
+<span class="lineno">   30 </span>import Data.Either.Extra
+<span class="lineno">   31 </span>    ( eitherToMaybe )
+<span class="lineno">   32 </span>import Data.Text
+<span class="lineno">   33 </span>    ( Text )
+<span class="lineno">   34 </span>
+<span class="lineno">   35 </span>import qualified Codec.Binary.Bech32 as Bech32
+<span class="lineno">   36 </span>import qualified Data.Text.Encoding as T
+<span class="lineno">   37 </span>
+<span class="lineno">   38 </span>-- | Convert a base16 encoded 'Text' into a raw 'ByteString'
+<span class="lineno">   39 </span>--
+<span class="lineno">   40 </span>-- @since 2.0.0
+<span class="lineno">   41 </span>fromBase16 :: Text -&gt; Maybe ByteString
+<span class="lineno">   42 </span><span class="decl"><span class="istickedoff">fromBase16 = eitherToMaybe . convertFromBase Base16 . T.encodeUtf8</span></span>
+<span class="lineno">   43 </span>
+<span class="lineno">   44 </span>-- | Convert a raw 'ByteString' into base16 encoded 'Text'
+<span class="lineno">   45 </span>--
+<span class="lineno">   46 </span>-- @since 2.0.0
+<span class="lineno">   47 </span>base16 :: ByteString -&gt; Text
+<span class="lineno">   48 </span><span class="decl"><span class="nottickedoff">base16 = T.decodeUtf8 . convertToBase Base16</span></span>
+<span class="lineno">   49 </span>
+<span class="lineno">   50 </span>-- | Convert a Bech32 encoded 'Text' into a raw 'ByteString'
+<span class="lineno">   51 </span>--
+<span class="lineno">   52 </span>-- @since 2.0.0
+<span class="lineno">   53 </span>fromBech32 :: Text -&gt; Maybe ByteString
+<span class="lineno">   54 </span><span class="decl"><span class="nottickedoff">fromBech32 txt = do</span>
+<span class="lineno">   55 </span><span class="spaces">    </span><span class="nottickedoff">(_, dp) &lt;- either (const Nothing) Just (Bech32.decodeLenient txt)</span>
+<span class="lineno">   56 </span><span class="spaces">    </span><span class="nottickedoff">Bech32.dataPartToBytes dp</span></span>
+<span class="lineno">   57 </span>
+<span class="lineno">   58 </span>-- | Convert a raw 'ByteString' into a bech32 encoded 'Text'
+<span class="lineno">   59 </span>--
+<span class="lineno">   60 </span>-- @since 2.0.0
+<span class="lineno">   61 </span>bech32 :: HumanReadablePart -&gt; ByteString -&gt; Text
+<span class="lineno">   62 </span><span class="decl"><span class="nottickedoff">bech32 hrp bytes =</span>
+<span class="lineno">   63 </span><span class="spaces">    </span><span class="nottickedoff">Bech32.encodeLenient hrp (Bech32.dataPartFromBytes bytes)</span></span>
+<span class="lineno">   64 </span>
+<span class="lineno">   65 </span>-- | Convert a base58 encoded 'Text' into a raw 'ByteString'
+<span class="lineno">   66 </span>--
+<span class="lineno">   67 </span>-- @since 2.0.0
+<span class="lineno">   68 </span>fromBase58 :: Text -&gt; Maybe ByteString
+<span class="lineno">   69 </span><span class="decl"><span class="istickedoff">fromBase58 = decodeBase58 bitcoinAlphabet . T.encodeUtf8</span></span>
+<span class="lineno">   70 </span>
+<span class="lineno">   71 </span>-- | Convert a raw 'ByteString' into a base58 encoded 'Text'
+<span class="lineno">   72 </span>base58 :: ByteString -&gt; Text
+<span class="lineno">   73 </span><span class="decl"><span class="nottickedoff">base58 = T.decodeUtf8 . encodeBase58 bitcoinAlphabet</span></span>
+<span class="lineno">   74 </span>
+<span class="lineno">   75 </span>-- | Convert a base64 encoded 'Text' into a raw 'ByteString'
+<span class="lineno">   76 </span>--
+<span class="lineno">   77 </span>-- @since 2.0.0
+<span class="lineno">   78 </span>fromBase64 :: Text -&gt; Maybe ByteString
+<span class="lineno">   79 </span><span class="decl"><span class="istickedoff">fromBase64 = eitherToMaybe . convertFromBase Base64 . T.encodeUtf8</span></span>
+<span class="lineno">   80 </span>
+<span class="lineno">   81 </span>-- | Convert a raw 'ByteString' into a base64 encoded 'Text', with padding.
+<span class="lineno">   82 </span>--
+<span class="lineno">   83 </span>-- @since 2.0.0
+<span class="lineno">   84 </span>base64 :: ByteString -&gt; Text
+<span class="lineno">   85 </span><span class="decl"><span class="nottickedoff">base64 = T.decodeUtf8 . convertToBase Base64</span></span>
+
+</pre>
+</body>
+</html>
