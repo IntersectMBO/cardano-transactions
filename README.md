@@ -27,6 +27,15 @@ provides a small command-line interface for playing around in a terminal.
 
 Check the [release page](https://github.com/input-output-hk/cardano-transactions/releases) for binaries.
 
+### Docker container
+
+Run:
+
+```sh
+docker pull inputoutput/cardano-tx
+docker run --rm inputoutput/cardano-tx --help
+```
+
 ## Payment
 
 We call _Payment_ a simple UTxO transactions with no metadata, moving funds from a set of inputs to a set of outputs.
