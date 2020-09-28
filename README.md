@@ -14,6 +14,19 @@
 This library provides a simple interface for building transactions on Cardano. It also
 provides a small command-line interface for playing around in a terminal.
 
+## Installation
+
+### Building from source
+
+1. download [haskell stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/)
+2. clone this repo: `git clone https://github.com/input-output-hk/cardano-transactions.git`
+3. cd into the project: `cd cardano-transactions`
+4. install: `stack install` (the binary will be in `~/.local/bin/cardano-tx`)
+
+### Download binaries
+
+Check the [release page](https://github.com/input-output-hk/cardano-transactions/releases) for binaries.
+
 ## Payment
 
 We call _Payment_ a simple UTxO transactions with no metadata, moving funds from a set of inputs to a set of outputs.
