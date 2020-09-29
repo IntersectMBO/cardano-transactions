@@ -6,20 +6,20 @@ RUN \
   apk add --no-cache zlib zlib-dev zlib-static ncurses-static libsodium libsodium-dev libsodium-static && \
   curl https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup > /usr/bin/ghcup && \
   chmod +x /usr/bin/ghcup && \
-  ghcup install ghc 8.6.5 && \
-  ghcup set ghc 8.6.5 && \
-  curl -L -s https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz && \
-  mv stack-*/stack /usr/bin/stack && \
-  rm -rf stack-* && \
-  chmod +x /usr/bin/stack
+  ghcup -v install ghc 8.6.5 && \
+  ghcup -v set ghc 8.6.5 && \
+  ghcup -v install cabal
 
 COPY . /app
 
-# install cardano-tx
+# install app
 RUN \
-  cd /app && \
+  mkdir -p ~/.local/bin && \
   export PATH="/root/.ghcup/bin:$PATH" && \
-  stack --system-ghc install --flag 'cardano-node:-systemd' --flag 'cardano-config:-systemd' --ghc-options='-optl-static -split-sections' --copy-bins
+  cabal update && \
+  cd /app && \
+  scripts/gen-cabal-nosystemd.sh && \
+  cabal install --project-file=cabal.nosystemd.project --installdir="$HOME/.local/bin" --install-method=copy --overwrite-policy=always --ghc-options='-split-sections -optl-static'
 
 # strip binary
 RUN strip -s /root/.local/bin/cardano-tx
