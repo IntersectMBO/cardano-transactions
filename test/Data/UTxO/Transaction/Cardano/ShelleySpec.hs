@@ -12,7 +12,7 @@ module Data.UTxO.Transaction.Cardano.ShelleySpec
 import Prelude
 
 import Codec.Binary.Encoding
-    ( fromBase16, fromBase58, fromBech32 )
+    ( base16, fromBase16, fromBase58, fromBech32 )
 import Control.Monad
     ( (>=>) )
 import Data.ByteString
@@ -57,11 +57,13 @@ import Test.QuickCheck
     , (===)
     )
 
+import qualified Cardano.Api.Typed as Api
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Pretty as CBOR
 import qualified Data.ByteString as BS
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.UTxO.Transaction as Tx
-
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
 
 spec :: Spec
@@ -209,6 +211,146 @@ spec = do
                 & Tx.signWith (unsafeMkByronSignKeyFromBS (byronAddrs !! 2) (wit 0))
                 & Tx.signWith (unsafeMkByronSignKeyFromBS (byronAddrs !! 3) (wit 1))
                 & Tx.serialize
+
+    describe "Golden tests for multisig scripts" $ do
+        let verKey1 = Api.RequireSignature
+                $ convertToHash "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
+        let verKey2 = Api.RequireSignature
+                $ convertToHash "60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f"
+        let verKey3 = Api.RequireSignature
+                $ convertToHash "ffcbb72393215007d9a0aa02b7430080409cd8c053fd4f5b4d905053"
+        let verKey4 = Api.RequireSignature
+                $ convertToHash "96834025cdca063ce9c32dfae6bc6a3e47f8da07ee4fb8e1a3901559"
+
+        it "RequireSignature index=0" $ do
+            let script = Api.makeMultiSigScript verKey1
+            base16 (Api.serialiseToCBOR script) `shouldBe`
+                "82008200581cdeeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
+            base16 (Api.serialiseToRawBytes $ Api.scriptHash script) `shouldBe`
+                "59fd497a34ac3e5abf2c8a703e3aaf3a2750e207b139d65d08d2c1b3"
+
+        it "RequireSignature index=1" $ do
+            let script = Api.makeMultiSigScript verKey2
+            base16 (Api.serialiseToCBOR script) `shouldBe`
+                "82008200581c60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f"
+            base16 (Api.serialiseToRawBytes $ Api.scriptHash script) `shouldBe`
+                "8d60cfd18163231751491389db7fa95bbb4192452d493f4147949f42"
+
+        it "RequireSignature index=2" $ do
+            let script = Api.makeMultiSigScript verKey3
+            base16 (Api.serialiseToCBOR script) `shouldBe`
+                "82008200581cffcbb72393215007d9a0aa02b7430080409cd8c053fd4f5b4d905053"
+            base16 (Api.serialiseToRawBytes $ Api.scriptHash script) `shouldBe`
+                "f34b7c6642ee2d2ff115a09d60d084d8df866c1be7722bfb78585d75"
+
+        it "RequireSignature index=3" $ do
+            let script = Api.makeMultiSigScript verKey4
+            base16 (Api.serialiseToCBOR script) `shouldBe`
+                "82008200581c96834025cdca063ce9c32dfae6bc6a3e47f8da07ee4fb8e1a3901559"
+            base16 (Api.serialiseToRawBytes $ Api.scriptHash script) `shouldBe`
+                "324f9577142f2034545ba2e905d6e8a18afbd3ede08ec6c274aa641b"
+
+        it "RequireAllOf - two ver keys" $ do
+            let multisig = Api.RequireAllOf [verKey1, verKey2]
+            let script = Api.makeMultiSigScript multisig
+            base16 (Api.serialiseToCBOR script) `shouldBe`
+                "82008201828200581cdeeae4e895d8d57378125ed4fd540f9bf245d59f7936a50437\
+                \9cfc1e8200581c60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f"
+            base16 (Api.serialiseToRawBytes $ Api.scriptHash script) `shouldBe`
+                "57eec18300169c459169e335b809dbf50ca236d6ef730f623799a004"
+
+        it "RequireAllOf - three ver keys" $ do
+            let multisig = Api.RequireAllOf [verKey1, verKey2, verKey3]
+            let script = Api.makeMultiSigScript multisig
+            base16 (Api.serialiseToCBOR script) `shouldBe`
+                "82008201838200581cdeeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e8200\
+                \581c60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f8200581cffcbb72393\
+                \215007d9a0aa02b7430080409cd8c053fd4f5b4d905053"
+            base16 (Api.serialiseToRawBytes $ Api.scriptHash script) `shouldBe`
+                "3db6ba0c234043ab963f5cc723d8a953d46477dbdc45f3dbd73847f1"
+
+        it "RequireAnyOf - two ver keys" $ do
+            let multisig = Api.RequireAnyOf [verKey1, verKey2]
+            let script = Api.makeMultiSigScript multisig
+            base16 (Api.serialiseToCBOR script) `shouldBe`
+                "82008202828200581cdeeae4e895d8d57378125ed4fd540f9bf245d59f7936a50437\
+                \9cfc1e8200581c60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f"
+            base16 (Api.serialiseToRawBytes $ Api.scriptHash script) `shouldBe`
+                "ee98a536acf306c398d0b51a675a088faf76d7e41d1f0ab94efc3be7"
+
+        it "RequireAnyOf - three ver keys" $ do
+            let multisig = Api.RequireAnyOf [verKey1, verKey2, verKey3]
+            let script = Api.makeMultiSigScript multisig
+            base16 (Api.serialiseToCBOR script) `shouldBe`
+                "82008202838200581cdeeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e8200\
+                \581c60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f8200581cffcbb72393\
+                \215007d9a0aa02b7430080409cd8c053fd4f5b4d905053"
+            base16 (Api.serialiseToRawBytes $ Api.scriptHash script) `shouldBe`
+                "270cbddf1d43fb4ad7eca05f08f2c9c65a290389d8c48c57ba9f38c4"
+
+        it "RequireMOf - 1 out of two ver keys" $ do
+            let multisig = Api.RequireMOf 1 [verKey1, verKey2]
+            let script = Api.makeMultiSigScript multisig
+            base16 (Api.serialiseToCBOR script) `shouldBe`
+                "8200830301828200581cdeeae4e895d8d57378125ed4fd540f9bf245d59f7936a504\
+                \379cfc1e8200581c60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f"
+            base16 (Api.serialiseToRawBytes $ Api.scriptHash script) `shouldBe`
+                "31aa5030ae386603145f0cb16577da64ce0647b3cf2104e8d5646d67"
+
+        it "RequireMOf - 2 out of four ver keys" $ do
+            let multisig = Api.RequireMOf 2 [verKey1, verKey2, verKey3, verKey4]
+            let script = Api.makeMultiSigScript multisig
+            base16 (Api.serialiseToCBOR script) `shouldBe`
+                "8200830302848200581cdeeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e82\
+                \00581c60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f8200581cffcbb723\
+                \93215007d9a0aa02b7430080409cd8c053fd4f5b4d9050538200581c96834025cdca063ce9c32d\
+                \fae6bc6a3e47f8da07ee4fb8e1a3901559"
+            base16 (Api.serialiseToRawBytes $ Api.scriptHash script) `shouldBe`
+                "e2da1830b3465ae1a9161e89ff79673d8d133c841ab06418f0034534"
+
+        it "nested - 1" $ do
+            let nested = Api.RequireAllOf [verKey3, verKey4]
+            let multisig = Api.RequireMOf 2 [verKey1, verKey2, nested]
+            let script = Api.makeMultiSigScript multisig
+            base16 (Api.serialiseToCBOR script) `shouldBe`
+                "8200830302838200581cdeeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e8\
+                \200581c60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f8201828200581c\
+                \ffcbb72393215007d9a0aa02b7430080409cd8c053fd4f5b4d9050538200581c96834025cdca0\
+                \63ce9c32dfae6bc6a3e47f8da07ee4fb8e1a3901559"
+            base16 (Api.serialiseToRawBytes $ Api.scriptHash script) `shouldBe`
+                "1ae2515f480c8b67fc2fcccab565bbc12b196a24083f6cf278c3ed7a"
+
+        it "nested - 2" $ do
+            let nested = Api.RequireAnyOf [verKey2, verKey3, verKey4]
+            let multisig = Api.RequireAllOf [verKey1, nested]
+            let script = Api.makeMultiSigScript multisig
+            base16 (Api.serialiseToCBOR script) `shouldBe`
+                "82008201828200581cdeeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e82\
+                \02838200581c60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f8200581c\
+                \ffcbb72393215007d9a0aa02b7430080409cd8c053fd4f5b4d9050538200581c96834025cdca\
+                \063ce9c32dfae6bc6a3e47f8da07ee4fb8e1a3901559"
+            base16 (Api.serialiseToRawBytes $ Api.scriptHash script) `shouldBe`
+                "ae743bad455bad082ab69fd31183fb70a2787274938c85048b80e8ee"
+
+        it "nested - 3" $ do
+            let nestedInner = Api.RequireAnyOf [verKey3, verKey4]
+            let nested = Api.RequireAllOf [verKey1, nestedInner]
+            let multisig = Api.RequireMOf 1 [verKey1, nested]
+            let script = Api.makeMultiSigScript multisig
+            base16 (Api.serialiseToCBOR script) `shouldBe`
+                "8200830301828200581cdeeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e8\
+                \201828200581cdeeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e82028282\
+                \00581cffcbb72393215007d9a0aa02b7430080409cd8c053fd4f5b4d9050538200581c9683402\
+                \5cdca063ce9c32dfae6bc6a3e47f8da07ee4fb8e1a3901559"
+            base16 (Api.serialiseToRawBytes $ Api.scriptHash script) `shouldBe`
+                "8aa7af44362310140ff3d32ac7d1a2ecbe26da65f3d146c64b90e9e1"
+
+convertToHash :: Text -> Api.Hash Api.PaymentKey
+convertToHash txt =
+  case Api.deserialiseFromRawBytesHex (Api.AsHash Api.AsPaymentKey) $ T.encodeUtf8 txt of
+    Just payKeyHash -> payKeyHash
+    Nothing -> error $ "Test.Cardano.Api.Examples.convertToHash: Error deserialising payment key hash: "
+               <> T.unpack txt
 
 --
 -- Golden

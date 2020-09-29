@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6b140374fc157da9ecc1ab8f8062a32ea98994e9035ccc01ad707460f80e43bf
+-- hash: f98459baf81b2c15fe63d44449f34b761b54686f591a8040fd8e566062feabef
 
 name:           cardano-transactions
 version:        1.0.0
@@ -103,6 +103,8 @@ test-suite unit
       QuickCheck
     , base >=4.7 && <5
     , bytestring
+    , cardano-api
+    , cardano-crypto-class
     , cardano-crypto-wrapper
     , cardano-ledger
     , cardano-ledger-test

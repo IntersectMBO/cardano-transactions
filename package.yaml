@@ -90,6 +90,8 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - bytestring
+    - cardano-api
+    - cardano-crypto-class
     - cardano-crypto-wrapper
     - cardano-ledger
     - cardano-ledger-test
