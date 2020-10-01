@@ -24,7 +24,7 @@ RUN \
 # strip binary
 RUN strip -s /root/.local/bin/cardano-tx
 
-FROM busybox:1.32
+FROM alpine:3.12
 
 COPY --from=builder /root/.local/bin/cardano-tx /usr/bin/cardano-tx
 
