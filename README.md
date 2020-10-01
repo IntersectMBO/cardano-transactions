@@ -32,8 +32,20 @@ Check the [release page](https://github.com/input-output-hk/cardano-transactions
 Run:
 
 ```sh
-docker pull inputoutput/cardano-tx
-docker run --rm inputoutput/cardano-tx --help
+# build (run inside the project dir)
+docker build -t inputoutput/cardano-transactions .
+
+# simple run
+docker run --rm inputoutput/cardano-transactions --help
+
+# interactive shell (to pipe commands)
+docker run --rm -ti --entrypoint sh inputoutput/cardano-transactions
+```
+
+The docker image is `alpine`, so tools can be installed as follows in an interactive shell:
+
+```sh
+apk add --no-cache nano git curl
 ```
 
 ## Payment
