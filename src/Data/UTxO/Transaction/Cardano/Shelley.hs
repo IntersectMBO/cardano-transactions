@@ -41,12 +41,10 @@ import Cardano.Api.Typed
     , TxIn (..)
     , TxOut (..)
     )
-import Cardano.Binary
-    ( serialize' )
 import Cardano.Crypto.Extra
     ( xprvFromBytes )
 import Cardano.Crypto.Hash.Class
-    ( Hash (UnsafeHash), hashWith )
+    ( Hash (UnsafeHash) )
 import Cardano.Crypto.Signing
     ( SigningKey (..) )
 import Cardano.Slotting.Slot
@@ -66,6 +64,7 @@ import qualified Cardano.Api.Typed as Cardano
 import qualified Data.ByteString as BS
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as Ledger
 import qualified Shelley.Spec.Ledger.Credential as Ledger
+import qualified Shelley.Spec.Ledger.TxBody as Ledger
 
 
 -- | A type isomorphic to 'Integer' to represent fees.
@@ -284,8 +283,8 @@ instance MkPayment Shelley where
       where
         byronWit = Cardano.ShelleyBootstrapWitness $
             Ledger.makeBootstrapWitness txHash skey attrs
-        (Cardano.ShelleyTxBody body _) = sigData
-        txHash = hashWith serialize' body
+        Cardano.ShelleyTxBody body _ = sigData
+        txHash = Ledger.eraIndTxBodyHash body
         attrs  = mkAttributes addrAttrs
 
     serialize :: Tx Shelley -> Either ErrMkPayment ByteString
