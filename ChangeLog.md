@@ -1,3 +1,19 @@
+## [2.x.0] - UNRELEASED
+
+### Added
+
+TBD
+
+### Changed
+
+- The Cardano base libraries used by cardano-transactions have been updated to version 1.22.1.
+- The `Codec.Binary.Encoding` module has been moved into an internal library.
+
+### Removed
+
+TBD
+
+
 ## [2.0.0] - 2020-04-23
 
 ### Added
