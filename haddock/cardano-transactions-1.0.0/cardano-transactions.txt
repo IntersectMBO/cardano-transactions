@@ -9,33 +9,6 @@
 @package cardano-transactions
 @version 1.0.0
 
-module Codec.Binary.Encoding
-
--- | Convert a base16 encoded <a>Text</a> into a raw <a>ByteString</a>
-fromBase16 :: Text -> Maybe ByteString
-
--- | Convert a Bech32 encoded <a>Text</a> into a raw <a>ByteString</a>
-fromBech32 :: Text -> Maybe ByteString
-
--- | Convert a base58 encoded <a>Text</a> into a raw <a>ByteString</a>
-fromBase58 :: Text -> Maybe ByteString
-
--- | Convert a base64 encoded <a>Text</a> into a raw <a>ByteString</a>
-fromBase64 :: Text -> Maybe ByteString
-
--- | Convert a raw <a>ByteString</a> into base16 encoded <a>Text</a>
-base16 :: ByteString -> Text
-
--- | Convert a raw <a>ByteString</a> into a bech32 encoded <a>Text</a>
-bech32 :: HumanReadablePart -> ByteString -> Text
-
--- | Convert a raw <a>ByteString</a> into a base58 encoded <a>Text</a>
-base58 :: ByteString -> Text
-
--- | Convert a raw <a>ByteString</a> into a base64 encoded <a>Text</a>,
---   with padding.
-base64 :: ByteString -> Text
-
 module Data.UTxO.Transaction
 
 -- | Abstract interface for constructing a <i>Payment</i>.
