@@ -27,7 +27,6 @@ library:
   - -Wcompat
   - -fwarn-redundant-constraints
   dependencies:
-  - base58-bytestring
   - bech32
   - bytestring
   - cardano-api
@@ -40,7 +39,6 @@ library:
   - cborg
   - cryptonite
   - extra
-  - memory
   - ouroboros-consensus-shelley
   - shelley-spec-ledger
   - text
@@ -48,6 +46,25 @@ library:
   - condition: flag(release)
     ghc-options:
     - -Werror
+
+internal-libraries:
+  cardano-transactions-shared:
+    source-dirs: shared
+    ghc-options:
+    - -Wall
+    - -Wcompat
+    - -fwarn-redundant-constraints
+    dependencies:
+    - base58-bytestring
+    - bech32
+    - bytestring
+    - extra
+    - memory
+    - text
+    when:
+    - condition: flag(release)
+      ghc-options:
+      - -Werror
 
 executables:
   cardano-tx:
@@ -64,6 +81,7 @@ executables:
     - ansi-terminal
     - bytestring
     - cardano-transactions
+    - cardano-transactions-shared
     - cborg
     - memory
     - optparse-applicative
@@ -94,6 +112,7 @@ tests:
     - cardano-ledger
     - cardano-ledger-test
     - cardano-transactions
+    - cardano-transactions-shared
     - cborg
     - hedgehog-quickcheck
     - hspec

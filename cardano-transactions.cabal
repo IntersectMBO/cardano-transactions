@@ -1,10 +1,10 @@
-cabal-version: 1.12
+cabal-version: 2.0
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6b140374fc157da9ecc1ab8f8062a32ea98994e9035ccc01ad707460f80e43bf
+-- hash: 3da51132b438b5f189cd9db4fb6495aa3c5544e69ba8f719eeca4268756a6612
 
 name:           cardano-transactions
 version:        1.0.0
@@ -33,7 +33,6 @@ library
   exposed-modules:
       Cardano.Address.Byron
       Cardano.Crypto.Extra
-      Codec.Binary.Encoding
       Data.UTxO.Transaction
       Data.UTxO.Transaction.Cardano.Byron
       Data.UTxO.Transaction.Cardano.Shelley
@@ -44,7 +43,6 @@ library
   ghc-options: -Wall -Wcompat -fwarn-redundant-constraints
   build-depends:
       base >=4.7 && <5
-    , base58-bytestring
     , bech32
     , bytestring
     , cardano-api
@@ -57,9 +55,28 @@ library
     , cborg
     , cryptonite
     , extra
-    , memory
     , ouroboros-consensus-shelley
     , shelley-spec-ledger
+    , text
+  if flag(release)
+    ghc-options: -Werror
+  default-language: Haskell2010
+
+library cardano-transactions-shared
+  exposed-modules:
+      Codec.Binary.Encoding
+  other-modules:
+      Paths_cardano_transactions
+  hs-source-dirs:
+      shared
+  ghc-options: -Wall -Wcompat -fwarn-redundant-constraints
+  build-depends:
+      base >=4.7 && <5
+    , base58-bytestring
+    , bech32
+    , bytestring
+    , extra
+    , memory
     , text
   if flag(release)
     ghc-options: -Werror
@@ -77,6 +94,7 @@ executable cardano-tx
     , base >=4.7 && <5
     , bytestring
     , cardano-transactions
+    , cardano-transactions-shared
     , cborg
     , memory
     , optparse-applicative
@@ -107,6 +125,7 @@ test-suite unit
     , cardano-ledger
     , cardano-ledger-test
     , cardano-transactions
+    , cardano-transactions-shared
     , cborg
     , hedgehog-quickcheck
     , hspec
