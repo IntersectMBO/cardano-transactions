@@ -7,6 +7,84 @@ ghc-options: {"$locals": -ddump-to-file -ddump-hi}
 packages:
 - .
 
+extra-deps:
+- base16-bytestring-1.0.1.0
+- text-conversions-0.3.1
+
+- git: https://github.com/input-output-hk/cardano-base
+  commit: 6226a0feb1d74f50a430242a1b4608fd48e10aad
+  subdirs:
+  - binary
+  - binary/test
+  - cardano-crypto-class
+  - cardano-crypto-tests
+  - cardano-crypto-praos
+  - slotting
+
+- git: https://github.com/input-output-hk/cardano-ledger-specs
+  commit: 7c64ed8ca2e2141780326ac2990f59ab942356af
+  subdirs:
+  - byron/chain/executable-spec
+  - byron/crypto
+  - byron/crypto/test
+  - byron/ledger/executable-spec
+  - byron/ledger/impl
+  - byron/ledger/impl/test
+  - semantics/executable-spec
+  - semantics/small-steps-test
+  - shelley/chain-and-ledger/dependencies/non-integer
+  - shelley/chain-and-ledger/executable-spec
+  - shelley/chain-and-ledger/shelley-spec-ledger-test
+  - shelley-ma/impl
+
+- git: https://github.com/input-output-hk/cardano-node
+  commit: 6ced601eb6fba892358ef3257a18ad8941d04f9f
+  subdirs:
+  - cardano-api
+  - cardano-cli
+  - cardano-config
+  - cardano-node
+  - cardano-node-chairman
+  - hedgehog-extras
+
+- git: https://github.com/input-output-hk/cardano-prelude
+  commit: 58e146c14e1349553d0ed75dd5245bbe65f0533e
+  subdirs:
+  - cardano-prelude
+  - cardano-prelude-test
+
+- git: https://github.com/input-output-hk/iohk-monitoring-framework
+  commit: b5965e013fbcfb2a155582953d4a9a99eee22a8a
+  subdirs:
+  - contra-tracer
+  - iohk-monitoring
+  - plugins/backend-aggregation
+  - plugins/backend-ekg
+  - plugins/backend-monitoring
+  - plugins/backend-trace-forwarder
+  - plugins/scribe-systemd
+  - tracer-transformers
+
+- git: https://github.com/input-output-hk/ouroboros-network
+  commit: 9aa3cb03deb367f5f237ab694d2c9e01b6cf431f
+  subdirs:
+  - io-sim
+  - io-sim-classes
+  - network-mux
+  - ouroboros-consensus
+  - ouroboros-consensus-byron
+  - ouroboros-consensus-cardano
+  - ouroboros-consensus-shelley
+  - ouroboros-network
+  - ouroboros-network-framework
+  - typed-protocols
+  - typed-protocols-examples
+  - Win32-network
+  # Extra packages not used by cardano-node
+  - cardano-client
+  - ntp-client
+  - ouroboros-consensus-mock
+
 flags:
   # Bundle VRF crypto in libsodium and do not rely on an external fork to have it.
   # This still requires the host system to have the 'standard' libsodium installed.

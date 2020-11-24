@@ -137,10 +137,10 @@ mkOutput
 mkOutput coin bytes =
     Cardano.deserialiseFromRawBytes Cardano.AsShelleyAddress bytes >>= \case
         Cardano.ShelleyAddress _ (Ledger.ScriptHashObj _) _ -> Nothing
-        addr@(Cardano.ByronAddress _) ->
-            pure $ Cardano.TxOut addr (Cardano.Lovelace $ fromIntegral coin)
         addr@(Cardano.ShelleyAddress _ (Ledger.KeyHashObj _) _) ->
-            pure $ Cardano.TxOut addr (Cardano.Lovelace $ fromIntegral coin)
+            pure $ Cardano.TxOut (Cardano.shelleyAddressInEra addr)
+                (Cardano.TxOutAdaOnly Cardano.AdaOnlyInShelleyEra
+                    $ Cardano.Lovelace $ fromIntegral coin)
 
 -- | Construct a 'SignKey' for /Shelley/ from primitive types.
 -- This is for Shelley era keys.
@@ -227,19 +227,19 @@ instance MkPayment Shelley where
     type Init Shelley = (NetworkId, SlotNo, Fee)
 
     type Input   Shelley = TxIn
-    type Output  Shelley = TxOut Cardano.Shelley
+    type Output  Shelley = TxOut Cardano.ShelleyEra
     type SignKey Shelley = CardanoSigningKey
 
     type CoinSel Shelley =
-        (NetworkId, SlotNo, Fee, [TxIn], [TxOut Cardano.Shelley])
+        (NetworkId, SlotNo, Fee, [TxIn], [TxOut Cardano.ShelleyEra])
 
     type Tx Shelley = Either
         ErrMkPayment
         ( NetworkId
         , [TxIn]
-        , [TxOut Cardano.Shelley]
-        , Cardano.TxBody Cardano.Shelley
-        , [Cardano.Witness Cardano.Shelley]
+        , [TxOut Cardano.ShelleyEra]
+        , Cardano.TxBody Cardano.ShelleyEra
+        , [Cardano.Witness Cardano.ShelleyEra]
         )
 
     empty :: Init Shelley -> CoinSel Shelley
@@ -248,7 +248,7 @@ instance MkPayment Shelley where
     addInput :: TxIn -> CoinSel Shelley -> CoinSel Shelley
     addInput inp (pm, ttl, fee, inps, outs) = (pm, ttl, fee, inp : inps, outs)
 
-    addOutput :: TxOut Cardano.Shelley -> CoinSel Shelley -> CoinSel Shelley
+    addOutput :: TxOut Cardano.ShelleyEra -> CoinSel Shelley -> CoinSel Shelley
     addOutput out (pm, ttl, fee, inps, outs) = (pm, ttl, fee, inps, out : outs)
 
     lock :: CoinSel Shelley -> Tx Shelley
