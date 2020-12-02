@@ -9,6 +9,8 @@
 
 {-# OPTIONS_HADDOCK prune #-}
 
+{-# OPTIONS_GHC -fno-warn-deprecations #-}
+
 module Data.UTxO.Transaction.Cardano.Shelley
     (
     -- * Initialization
@@ -35,12 +37,7 @@ module Data.UTxO.Transaction.Cardano.Shelley
 import Cardano.Address.Byron
     ( AddrAttributes, Address (..), getAddrAttributes, mkAttributes )
 import Cardano.Api.Typed
-    ( NetworkId
-    , NetworkMagic (..)
-    , TxExtraContent (..)
-    , TxIn (..)
-    , TxOut (..)
-    )
+    ( NetworkId, NetworkMagic (..), TxIn (..), TxOut (..) )
 import Cardano.Crypto.Extra
     ( xprvFromBytes )
 import Cardano.Crypto.Hash.Class
@@ -136,11 +133,19 @@ mkOutput
     -> Maybe (Output Shelley)
 mkOutput coin bytes =
     Cardano.deserialiseFromRawBytes Cardano.AsShelleyAddress bytes >>= \case
-        Cardano.ShelleyAddress _ (Ledger.ScriptHashObj _) _ -> Nothing
-        addr@(Cardano.ByronAddress _) ->
-            pure $ Cardano.TxOut addr (Cardano.Lovelace $ fromIntegral coin)
-        addr@(Cardano.ShelleyAddress _ (Ledger.KeyHashObj _) _) ->
-            pure $ Cardano.TxOut addr (Cardano.Lovelace $ fromIntegral coin)
+        Cardano.ShelleyAddress _ (Ledger.ScriptHashObj _) _ ->
+            Nothing
+
+        addr ->
+            pure $ Cardano.TxOut
+                (Cardano.AddressInEra era addr)
+                (toLovelace coin)
+  where
+    era = Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraShelley
+    toLovelace
+        = Cardano.TxOutAdaOnly Cardano.AdaOnlyInShelleyEra
+        .  Cardano.Lovelace
+        . fromIntegral
 
 -- | Construct a 'SignKey' for /Shelley/ from primitive types.
 -- This is for Shelley era keys.
@@ -258,17 +263,15 @@ instance MkPayment Shelley where
       where
         inps'   = reverse inps
         outs'   = reverse outs
-        sigData = Cardano.makeShelleyTransaction
-            TxExtraContent
-                { txMetadata = Nothing -- TO DO: add metadata support
-                , txWithdrawals = [] -- TO DO: add withdrawal support
-                , txCertificates = []
-                , txUpdateProposal = Nothing
-                }
-            ttl
-            (Cardano.Lovelace $ unFee fee)
+        Right sigData = Cardano.makeShelleyTransaction
             inps'
             outs'
+            ttl
+            (Cardano.Lovelace $ unFee fee)
+            [] -- certificates
+            [] -- withdrawals
+            Nothing -- metadata
+            Nothing -- update proposals
 
     signWith :: SignKey Shelley -> Tx Shelley -> Tx Shelley
     signWith _ (Left e) = Left e
@@ -281,9 +284,9 @@ instance MkPayment Shelley where
     signWith (ByronSigningKey addrAttrs skey) (Right (net, inps, outs, sigData, wits)) =
         Right (net, inps, outs, sigData, byronWit : wits)
       where
-        byronWit = Cardano.ShelleyBootstrapWitness $
+        byronWit = Cardano.ShelleyBootstrapWitness era $
             Ledger.makeBootstrapWitness txHash skey attrs
-        Cardano.ShelleyTxBody body _ = sigData
+        Cardano.ShelleyTxBody era body _ = sigData
         txHash = Ledger.eraIndTxBodyHash body
         attrs  = mkAttributes addrAttrs
 
