@@ -50,6 +50,8 @@ import Data.ByteString
     ( ByteString )
 import Data.ByteString.Short
     ( toShort )
+import Data.Foldable
+    ( asum )
 import Data.UTxO.Transaction
     ( ErrMkPayment (..), MkPayment (..) )
 import Data.Word
@@ -60,7 +62,6 @@ import Numeric.Natural
 import qualified Cardano.Api.Typed as Cardano
 import qualified Data.ByteString as BS
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as Ledger
-import qualified Shelley.Spec.Ledger.Credential as Ledger
 import qualified Shelley.Spec.Ledger.TxBody as Ledger
 
 
@@ -132,19 +133,17 @@ mkOutput
         -- ^ Output Address. See also: 'fromBase58', 'fromBase16', 'fromBech32'.
     -> Maybe (Output Shelley)
 mkOutput coin bytes =
-    Cardano.deserialiseFromRawBytes Cardano.AsShelleyAddress bytes >>= \case
-        Cardano.ShelleyAddress _ (Ledger.ScriptHashObj _) _ ->
-            Nothing
+    (\addr -> Cardano.TxOut addr (toLovelace coin)) <$> asum
+    [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraShelley)
+        <$> Cardano.deserialiseFromRawBytes Cardano.AsShelleyAddress bytes
 
-        addr ->
-            pure $ Cardano.TxOut
-                (Cardano.AddressInEra era addr)
-                (toLovelace coin)
+    , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
+        <$> Cardano.deserialiseFromRawBytes Cardano.AsByronAddress bytes
+    ]
   where
-    era = Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraShelley
     toLovelace
         = Cardano.TxOutAdaOnly Cardano.AdaOnlyInShelleyEra
-        .  Cardano.Lovelace
+        . Cardano.Lovelace
         . fromIntegral
 
 -- | Construct a 'SignKey' for /Shelley/ from primitive types.
