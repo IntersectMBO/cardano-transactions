@@ -11,7 +11,7 @@
 
 ## Overview
 
-This library provides a simple interface for building transactions on Cardano. It also
+This library provides a simple interface for building transactions on Cardano. It also 
 provides a small command-line interface for playing around in a terminal.
 
 ## Installation
